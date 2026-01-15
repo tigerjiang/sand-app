@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000">
+<path d="
+M200 600
+C260 480 340 520 380 460
+C420 400 520 420 560 360
+C600 300 700 340 740 300
+C780 260 820 300 840 340
+C780 380 760 440 700 460
+C640 480 600 560 540 580
+C480 600 420 680 340 660
+C280 640 240 620 200 600
+"
+fill="none" stroke="black" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

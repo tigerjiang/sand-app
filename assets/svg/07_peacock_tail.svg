@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000">
+<path d="
+M500 750
+C650 650 780 520 780 420
+C780 300 650 260 500 300
+C350 260 220 300 220 420
+C220 520 350 650 500 750
+"
+fill="none" stroke="black" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

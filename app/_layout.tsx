@@ -13,7 +13,13 @@ const { PlaylistProvider } = PlaylistContext;
 const { ThemeProvider, useTheme } = ThemeContext;
 const { DeviceProvider } = DeviceContext;
 
-function CustomHeader({ title }: { title: string }) {
+function CustomHeader({
+  title,
+  showMenu = true,
+}: {
+  title: string;
+  showMenu?: boolean;
+}) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { isDark } = useTheme();
@@ -38,12 +44,16 @@ function CustomHeader({ title }: { title: string }) {
       <Text style={[headerStyles.headerTitle, { color: headerTextColor }]}>
         {title}
       </Text>
-      <TouchableOpacity
-        onPress={() => router.push("/settings")}
-        style={headerStyles.menuButton}
-      >
-        <Ionicons name="menu" size={24} color={iconColor} />
-      </TouchableOpacity>
+      {showMenu ? (
+        <TouchableOpacity
+          onPress={() => router.push("/settings")}
+          style={headerStyles.menuButton}
+        >
+          <Ionicons name="menu" size={24} color={iconColor} />
+        </TouchableOpacity>
+      ) : (
+        <View style={headerStyles.menuButton} />
+      )}
     </View>
   );
 }
@@ -160,7 +170,7 @@ function RootLayoutContent() {
           name="language"
           options={{
             headerShown: true,
-            header: () => <CustomHeader title="LANGUAGE" />,
+            header: () => <CustomHeader title="LANGUAGE" showMenu={false} />,
           }}
         />
         <Stack.Screen
@@ -188,14 +198,14 @@ function RootLayoutContent() {
           name="edit-profile"
           options={{
             headerShown: true,
-            header: () => <CustomHeader title="PROFILE" />,
+            header: () => <CustomHeader title="PROFILE" showMenu={false} />,
           }}
         />
         <Stack.Screen
           name="change-password"
           options={{
             headerShown: true,
-            header: () => <CustomHeader title="PASSWORD" />,
+            header: () => <CustomHeader title="PASSWORD" showMenu={false} />,
           }}
         />
       </Stack>

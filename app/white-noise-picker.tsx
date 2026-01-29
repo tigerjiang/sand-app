@@ -1,14 +1,15 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useState } from "react";
 import {
-    Modal,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useI18n } from "../contexts/I18nContext";
 import { useTheme } from "../contexts/ThemeContext";
 
 type PlayMode = "single" | "random" | "sequential";
@@ -45,12 +46,16 @@ export default function WhiteNoisePickerScreen({
 }: WhiteNoisePickerProps) {
   const insets = useSafeAreaInsets();
   const { isDark } = useTheme();
+  const { t } = useI18n();
   const [playMode, setPlayMode] = useState<PlayMode>("sequential");
   const [selectedMusic, setSelectedMusic] = useState<string | null>(null);
 
-  const backgroundColor = "#000000";
-  const textColor = "#FFFFFF";
+  const backgroundColor = isDark ? "#000000" : "#F5F5F0";
+  const textColor = isDark ? "#FFFFFF" : "#000000";
   const activeColor = "#9370DB";
+  const borderColor = isDark ? "#2C2C2E" : "#E0E0E0";
+  const itemBgColor = isDark ? "#1C1C1E" : "#FFFFFF";
+  const activeItemBgColor = isDark ? "#2C2C2E" : "#E8E8E8";
 
   const handleMusicSelect = (musicName: string) => {
     setSelectedMusic(musicName);
@@ -67,8 +72,8 @@ export default function WhiteNoisePickerScreen({
     >
       <View style={[styles.container, { backgroundColor, paddingTop: insets.top }]}>
         {/* Header */}
-        <View style={styles.header}>
-          <Text style={[styles.headerTitle, { color: textColor }]}>白噪音选择</Text>
+        <View style={[styles.header, { borderBottomColor: borderColor }]}>
+          <Text style={[styles.headerTitle, { color: textColor }]}>{t("whiteNoiseSelection")}</Text>
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>
             <Ionicons name="close" size={24} color={textColor} />
           </TouchableOpacity>
@@ -77,13 +82,13 @@ export default function WhiteNoisePickerScreen({
         <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
           {/* Play Mode Section */}
           <View style={styles.playModeSection}>
-            <Text style={[styles.sectionTitle, { color: textColor }]}>播放模式</Text>
+            <Text style={[styles.sectionTitle, { color: textColor }]}>{t("playMode")}</Text>
             <View style={styles.playModeButtons}>
               <TouchableOpacity
                 style={[
                   styles.playModeButton,
-                  playMode === "single" && styles.playModeButtonActive,
-                  playMode === "single" && { borderColor: activeColor },
+                  { borderColor: borderColor },
+                  playMode === "single" && { backgroundColor: activeItemBgColor, borderColor: activeColor },
                 ]}
                 onPress={() => setPlayMode("single")}
               >
@@ -98,15 +103,15 @@ export default function WhiteNoisePickerScreen({
                     { color: playMode === "single" ? activeColor : textColor },
                   ]}
                 >
-                  单曲循环
+                  {t("singleLoop")}
                 </Text>
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={[
                   styles.playModeButton,
-                  playMode === "random" && styles.playModeButtonActive,
-                  playMode === "random" && { borderColor: activeColor },
+                  { borderColor: borderColor },
+                  playMode === "random" && { backgroundColor: activeItemBgColor, borderColor: activeColor },
                 ]}
                 onPress={() => setPlayMode("random")}
               >
@@ -121,15 +126,15 @@ export default function WhiteNoisePickerScreen({
                     { color: playMode === "random" ? activeColor : textColor },
                   ]}
                 >
-                  随机播放
+                  {t("randomPlay")}
                 </Text>
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={[
                   styles.playModeButton,
-                  playMode === "sequential" && styles.playModeButtonActive,
-                  playMode === "sequential" && { borderColor: activeColor },
+                  { borderColor: borderColor },
+                  playMode === "sequential" && { backgroundColor: activeItemBgColor, borderColor: activeColor },
                 ]}
                 onPress={() => setPlayMode("sequential")}
               >
@@ -144,7 +149,7 @@ export default function WhiteNoisePickerScreen({
                     { color: playMode === "sequential" ? activeColor : textColor },
                   ]}
                 >
-                  顺序播放
+                  {t("sequentialPlay")}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -152,13 +157,14 @@ export default function WhiteNoisePickerScreen({
 
           {/* Music List Section */}
           <View style={styles.musicListSection}>
-            <Text style={[styles.sectionTitle, { color: textColor }]}>音乐列表</Text>
+            <Text style={[styles.sectionTitle, { color: textColor }]}>{t("musicList")}</Text>
             {musicList.map((music, index) => (
               <TouchableOpacity
                 key={index}
                 style={[
                   styles.musicItem,
-                  selectedMusic === music && styles.musicItemActive,
+                  { backgroundColor: itemBgColor },
+                  selectedMusic === music && { backgroundColor: activeItemBgColor },
                 ]}
                 onPress={() => handleMusicSelect(music)}
               >
@@ -194,7 +200,6 @@ export default function WhiteNoisePickerScreen({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#000000",
   },
   header: {
     flexDirection: "row",
@@ -203,7 +208,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: "#2C2C2E",
   },
   headerTitle: {
     fontSize: 18,
@@ -241,12 +245,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: "#3A3A3C",
-    backgroundColor: "transparent",
     gap: 8,
-  },
-  playModeButtonActive: {
-    backgroundColor: "#2C2C2E",
   },
   playModeText: {
     fontSize: 14,
@@ -263,10 +262,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 8,
     marginBottom: 8,
-    backgroundColor: "transparent",
-  },
-  musicItemActive: {
-    backgroundColor: "#2C2C2E",
   },
   musicItemLeft: {
     flexDirection: "row",
@@ -279,4 +274,5 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
 });
+
 

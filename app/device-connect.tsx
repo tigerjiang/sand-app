@@ -2,6 +2,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
 import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { useDevice } from "../contexts/DeviceContext";
+import { useI18n } from "../contexts/I18nContext";
 
 // 注意：实际蓝牙配网需要使用 react-native-ble-plx 或类似库
 // 这里提供的是模拟实现
@@ -9,6 +11,8 @@ import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View 
 export default function DeviceConnectScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
+  const { t } = useI18n();
+  const { setCurrentDevice } = useDevice();
   const deviceId = params.deviceId as string;
   const deviceName = params.deviceName as string;
 
@@ -19,7 +23,7 @@ export default function DeviceConnectScreen() {
 
   const handleConnect = async () => {
     if (!ssid || !password) {
-      Alert.alert("Error", "Please enter both SSID and password");
+      Alert.alert(t("error"), t("pleaseEnterBoth"));
       return;
     }
 
@@ -49,16 +53,17 @@ export default function DeviceConnectScreen() {
       await device.cancelConnection();
       */
 
-      // 配网成功后跳转到主页面
-      Alert.alert("Success", "Device configured successfully!", [
+      // 配网成功后保存设备信息并跳转到主页面
+      setCurrentDevice({ id: deviceId, name: deviceName });
+      Alert.alert(t("success"), t("deviceConfiguredSuccess"), [
         {
-          text: "OK",
+          text: t("ok"),
           onPress: () => router.replace("/(tabs)/device"),
         },
       ]);
     } catch (error) {
       console.error("Connection error:", error);
-      Alert.alert("Error", "Failed to configure device. Please try again.");
+      Alert.alert(t("error"), t("failedToConfigure"));
     } finally {
       setIsConnecting(false);
     }
@@ -68,21 +73,21 @@ export default function DeviceConnectScreen() {
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
       {/* Main Content */}
       <View style={styles.mainContent}>
-        <Text style={styles.title}>Device Setup</Text>
+        <Text style={styles.title}>{t("deviceSetup")}</Text>
         <Text style={styles.subtitle}>
-          Welcome zehu. Now let's set up your new Oasis Kinetic device:
+          {t("welcome")} zehu. {t("nowLetsSetup")}
         </Text>
 
         {/* Device Info */}
         <View style={styles.deviceInfo}>
-          <Text style={styles.deviceInfoText}>Device: {deviceName}</Text>
+          <Text style={styles.deviceInfoText}>{t("device")}: {deviceName}</Text>
         </View>
 
         {/* WiFi SSID Input */}
-        <Text style={styles.label}>WiFi SSID (2.4GHz)</Text>
+        <Text style={styles.label}>{t("wifiSSID24GHz")}</Text>
         <TextInput
           style={styles.input}
-          placeholder="Enter WiFi SSID"
+          placeholder={t("enterWiFiSSID")}
           placeholderTextColor="#999"
           value={ssid}
           onChangeText={setSsid}
@@ -90,11 +95,11 @@ export default function DeviceConnectScreen() {
         />
 
         {/* WiFi Password Input */}
-        <Text style={styles.label}>WiFi Password</Text>
+        <Text style={styles.label}>{t("wifiPassword")}</Text>
         <View style={styles.passwordContainer}>
           <TextInput
             style={styles.passwordInput}
-            placeholder="Enter WiFi Password"
+            placeholder={t("enterWiFiPassword")}
             placeholderTextColor="#999"
             value={password}
             onChangeText={setPassword}
@@ -116,14 +121,14 @@ export default function DeviceConnectScreen() {
           disabled={isConnecting}
         >
           {isConnecting ? (
-            <Text style={styles.connectButtonText}>CONNECTING...</Text>
+            <Text style={styles.connectButtonText}>{t("connecting")}</Text>
           ) : (
-            <Text style={styles.connectButtonText}>CONNECT</Text>
+            <Text style={styles.connectButtonText}>{t("connect")}</Text>
           )}
         </TouchableOpacity>
 
         <Text style={styles.note}>
-          Note: Make sure your device is in pairing mode and your phone's Bluetooth is enabled.
+          {t("note")}: {t("makeSureDevicePairing")}
         </Text>
       </View>
     </ScrollView>

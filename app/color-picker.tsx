@@ -2,24 +2,26 @@ import Slider from "@react-native-community/slider";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRef, useState } from "react";
 import {
-    Dimensions,
-    Modal,
-    PanResponder,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Alert,
+  Dimensions,
+  Modal,
+  PanResponder,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useI18n } from "../contexts/I18nContext";
 import { useTheme } from "../contexts/ThemeContext";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 const COLOR_WHEEL_SIZE = Math.min(SCREEN_WIDTH - 80, 300);
 const COLOR_SQUARE_SIZE = COLOR_WHEEL_SIZE * 0.4;
 
-// 预设实色
-const solidColors = [
+// 预设实色初始值
+const initialSolidColors = [
   "#FFFFFF", // 白色
   "#87CEEB", // 浅蓝色
   "#40E0D0", // 青色
@@ -46,8 +48,16 @@ interface ColorPickerProps {
 }
 
 export default function ColorPickerScreen({ visible, onClose, onColorSelect }: ColorPickerProps) {
+  const { t } = useI18n();
   const insets = useSafeAreaInsets();
   const { isDark } = useTheme();
+
+  const backgroundColor = isDark ? "#000000" : "#F5F5F0";
+  const textColor = isDark ? "#FFFFFF" : "#000000";
+  const borderColor = isDark ? "#2C2C2E" : "#E0E0E0";
+  const sliderTrackColor = isDark ? "#3A3A3C" : "#E0E0E0";
+  const toggleBgColor = isDark ? "#3A3A3C" : "#E0E0E0";
+  const markerBorderColor = isDark ? "#FFFFFF" : "#000000";
 
   const [hue, setHue] = useState(0); // 0-360
   const [saturation, setSaturation] = useState(100); // 0-100
@@ -55,6 +65,7 @@ export default function ColorPickerScreen({ visible, onClose, onColorSelect }: C
   const [lightDirection, setLightDirection] = useState(false);
   const [loopMode, setLoopMode] = useState(false);
   const [ledSpeed, setLedSpeed] = useState(50);
+  const [solidColors, setSolidColors] = useState<string[]>(initialSolidColors);
 
   // 将 HSV 转换为 RGB，然后转换为十六进制
   const hsvToHex = (h: number, s: number, v: number): string => {
@@ -143,6 +154,24 @@ export default function ColorPickerScreen({ visible, onClose, onColorSelect }: C
     onClose();
   };
 
+  const handleAddColor = () => {
+    if (solidColors.length >= 8) {
+      Alert.alert(t("maxColorsReached"), t("maxColorsMessage"));
+      return;
+    }
+    // 检查颜色是否已存在
+    if (!solidColors.includes(currentColor)) {
+      setSolidColors([...solidColors, currentColor]);
+    }
+  };
+
+  const handleReplaceWithGradient = (gradient: { colors: string[] }) => {
+    // 将 gradient 的颜色数组替换 solidColors
+    // 如果超过8个，只取前8个
+    const colorsToSet = gradient.colors.slice(0, 8);
+    setSolidColors(colorsToSet);
+  };
+
   // 计算颜色轮标记位置
   const colorWheelMarkerAngle = (hue * Math.PI) / 180;
   const colorWheelMarkerX = (COLOR_WHEEL_SIZE / 2) + (COLOR_WHEEL_SIZE / 2 - 10) * Math.cos(colorWheelMarkerAngle);
@@ -159,7 +188,7 @@ export default function ColorPickerScreen({ visible, onClose, onColorSelect }: C
       transparent={false}
       onRequestClose={onClose}
     >
-      <View style={[styles.container, { backgroundColor: "#000000", paddingTop: insets.top }]}>
+      <View style={[styles.container, { backgroundColor, paddingTop: insets.top }]}>
         <ScrollView
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
@@ -190,7 +219,7 @@ export default function ColorPickerScreen({ visible, onClose, onColorSelect }: C
                   style={StyleSheet.absoluteFillObject}
                 />
                 {/* Inner Circle (cutout) */}
-                <View style={styles.colorWheelInner}>
+                <View style={[styles.colorWheelInner, { backgroundColor: isDark ? "#000000" : "#FFFFFF" }]}>
                   {/* Color Square */}
                   <View
                     style={[
@@ -214,6 +243,8 @@ export default function ColorPickerScreen({ visible, onClose, onColorSelect }: C
                         {
                           left: colorSquareMarkerX - 8,
                           top: colorSquareMarkerY - 8,
+                          borderColor: markerBorderColor,
+                          backgroundColor: isDark ? "#000000" : "#FFFFFF",
                         },
                       ]}
                     />
@@ -227,6 +258,7 @@ export default function ColorPickerScreen({ visible, onClose, onColorSelect }: C
                   {
                     left: colorWheelMarkerX - 8,
                     top: colorWheelMarkerY - 8,
+                    borderColor: markerBorderColor,
                   },
                 ]}
               />
@@ -246,8 +278,11 @@ export default function ColorPickerScreen({ visible, onClose, onColorSelect }: C
             </View>
 
             {/* Add Button */}
-            <TouchableOpacity style={styles.addButton}>
-              <Text style={styles.addButtonText}>+</Text>
+            <TouchableOpacity 
+              style={[styles.addButton, { borderColor: borderColor }]}
+              onPress={handleAddColor}
+            >
+              <Text style={[styles.addButtonText, { color: textColor }]}>+</Text>
             </TouchableOpacity>
 
             {/* Gradient Presets */}
@@ -256,10 +291,13 @@ export default function ColorPickerScreen({ visible, onClose, onColorSelect }: C
                 <TouchableOpacity
                   key={index}
                   style={styles.presetCircle}
-                  onPress={() => handleColorSelect(gradient.colors[0])}
+                  onPress={() => {
+                    handleReplaceWithGradient(gradient);
+                    // handleColorSelect(gradient.colors[0]);
+                  }}
                 >
                   <LinearGradient
-                    colors={gradient.colors}
+                    colors={gradient.colors as [string, string, ...string[]]}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                     style={styles.gradientPreset}
@@ -273,10 +311,11 @@ export default function ColorPickerScreen({ visible, onClose, onColorSelect }: C
           <View style={styles.settingsContainer}>
             {/* Light Direction */}
             <View style={styles.settingRow}>
-              <Text style={styles.settingLabel}>灯光转向</Text>
+              <Text style={[styles.settingLabel, { color: textColor }]}>{t("lightDirection")}</Text>
               <TouchableOpacity
                 style={[
                   styles.toggle,
+                  { backgroundColor: toggleBgColor },
                   lightDirection && styles.toggleActive,
                 ]}
                 onPress={() => setLightDirection(!lightDirection)}
@@ -292,10 +331,11 @@ export default function ColorPickerScreen({ visible, onClose, onColorSelect }: C
 
             {/* Loop Mode */}
             <View style={styles.settingRow}>
-              <Text style={styles.settingLabel}>循环模式</Text>
+              <Text style={[styles.settingLabel, { color: textColor }]}>{t("loopMode")}</Text>
               <TouchableOpacity
                 style={[
                   styles.toggle,
+                  { backgroundColor: toggleBgColor },
                   loopMode && styles.toggleActive,
                 ]}
                 onPress={() => setLoopMode(!loopMode)}
@@ -311,7 +351,7 @@ export default function ColorPickerScreen({ visible, onClose, onColorSelect }: C
 
             {/* LED Speed */}
             <View style={styles.settingRow}>
-              <Text style={styles.settingLabel}>LED 速度</Text>
+              <Text style={[styles.settingLabel, { color: textColor }]}>{t("ledSpeed")}</Text>
               <View style={styles.sliderContainer}>
                 <Slider
                   style={styles.slider}
@@ -320,7 +360,7 @@ export default function ColorPickerScreen({ visible, onClose, onColorSelect }: C
                   value={ledSpeed}
                   onValueChange={setLedSpeed}
                   minimumTrackTintColor="#9370DB"
-                  maximumTrackTintColor="#3A3A3C"
+                  maximumTrackTintColor={sliderTrackColor}
                   thumbTintColor="#D2B48C"
                 />
               </View>
@@ -329,8 +369,8 @@ export default function ColorPickerScreen({ visible, onClose, onColorSelect }: C
         </ScrollView>
 
         {/* Close Button */}
-        <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-          <Text style={styles.closeButtonText}>Close</Text>
+        <TouchableOpacity style={[styles.closeButton, { borderTopColor: borderColor }]} onPress={onClose}>
+          <Text style={[styles.closeButtonText, { color: textColor }]}>Close</Text>
         </TouchableOpacity>
       </View>
     </Modal>
@@ -340,7 +380,6 @@ export default function ColorPickerScreen({ visible, onClose, onColorSelect }: C
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#000000",
   },
   scrollView: {
     flex: 1,
@@ -374,7 +413,6 @@ const styles = StyleSheet.create({
     width: COLOR_WHEEL_SIZE * 0.6,
     height: COLOR_WHEEL_SIZE * 0.6,
     borderRadius: (COLOR_WHEEL_SIZE * 0.6) / 2,
-    backgroundColor: "#000000",
     justifyContent: "center",
     alignItems: "center",
     position: "absolute",
@@ -392,7 +430,6 @@ const styles = StyleSheet.create({
     height: 16,
     borderRadius: 8,
     borderWidth: 2,
-    borderColor: "#FFFFFF",
     backgroundColor: "#FF0000",
   },
   colorSquareMarker: {
@@ -401,8 +438,6 @@ const styles = StyleSheet.create({
     height: 16,
     borderRadius: 8,
     borderWidth: 2,
-    borderColor: "#FFFFFF",
-    backgroundColor: "#000000",
   },
   presetsContainer: {
     marginBottom: 30,
@@ -429,14 +464,12 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: "#FFFFFF",
     justifyContent: "center",
     alignItems: "center",
     alignSelf: "center",
     marginBottom: 16,
   },
   addButtonText: {
-    color: "#FFFFFF",
     fontSize: 24,
     fontWeight: "300",
   },
@@ -450,14 +483,12 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   settingLabel: {
-    color: "#FFFFFF",
     fontSize: 16,
   },
   toggle: {
     width: 50,
     height: 30,
     borderRadius: 15,
-    backgroundColor: "#3A3A3C",
     padding: 3,
     justifyContent: "center",
   },
@@ -486,10 +517,8 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     alignItems: "center",
     borderTopWidth: 1,
-    borderTopColor: "#2C2C2E",
   },
   closeButtonText: {
-    color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "500",
   },

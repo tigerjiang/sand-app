@@ -1,4 +1,4 @@
-# Oasis Control App
+# MeditativeSand App
 
 这是一个基于 Expo 的移动应用，用于控制和管理 Oasis 设备。
 

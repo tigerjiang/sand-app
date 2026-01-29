@@ -1,16 +1,21 @@
 import { Ionicons } from "@expo/vector-icons";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import Slider from "@react-native-community/slider";
 import { LinearGradient } from "expo-linear-gradient";
 import { useState } from "react";
 import {
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Path } from "react-native-svg";
+import DeviceHeader from "../../components/DeviceHeader";
+import { useI18n } from "../../contexts/I18nContext";
 import { useTheme } from "../../contexts/ThemeContext";
 import ColorPickerScreen from "../color-picker";
 import WhiteNoisePickerScreen from "../white-noise-picker";
@@ -68,11 +73,24 @@ const svgPaths: Record<string, string> = {
 export default function DeviceTab() {
   const insets = useSafeAreaInsets();
   const { isDark } = useTheme();
+  const { t } = useI18n();
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [intervalPause, setIntervalPause] = useState(false);
+  const [intervalPauseMinutes, setIntervalPauseMinutes] = useState(0);
+  const [intervalPauseModalVisible, setIntervalPauseModalVisible] = useState(false);
+  const [tempIntervalMinutes, setTempIntervalMinutes] = useState(0);
   const [autoSleep, setAutoSleep] = useState(false);
+  const [sleepStartTime, setSleepStartTime] = useState<Date | null>(null);
+  const [sleepEndTime, setSleepEndTime] = useState<Date | null>(null);
+  const [autoSleepModalVisible, setAutoSleepModalVisible] = useState(false);
+  const [showStartTimePicker, setShowStartTimePicker] = useState(false);
+  const [showEndTimePicker, setShowEndTimePicker] = useState(false);
+  const [tempSleepStartTime, setTempSleepStartTime] = useState<Date | null>(null);
+  const [tempSleepEndTime, setTempSleepEndTime] = useState<Date | null>(null);
   const [brightness, setBrightness] = useState(100);
+  // selectedColor 保留用于将来发送蓝牙指令，目前不在 UI 中使用
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [selectedColor, setSelectedColor] = useState("#FFFFFF");
   const [currentIndex, setCurrentIndex] = useState(0);
   const [colorPickerVisible, setColorPickerVisible] = useState(false);
@@ -80,9 +98,15 @@ export default function DeviceTab() {
   const [musicEnabled, setMusicEnabled] = useState(true);
   const [whiteNoisePickerVisible, setWhiteNoisePickerVisible] = useState(false);
 
-  const backgroundColor = isDark ? "#000000" : "#000000";
-  const textColor = isDark ? "#FFFFFF" : "#FFFFFF";
-  const iconColor = isDark ? "#FFFFFF" : "#FFFFFF";
+  const backgroundColor = isDark ? "#000000" : "#F5F5F0";
+  const textColor = isDark ? "#FFFFFF" : "#000000";
+  const iconColor = isDark ? "#FFFFFF" : "#000000";
+  const borderColor = isDark ? "#FFFFFF" : "#E0E0E0";
+  const activeBgColor = isDark ? "#2C2C2E" : "#E8E8E8";
+  const sliderActiveColor = isDark ? "#FFFFFF" : "#1A1A1A";
+  const sliderTrackColor = isDark ? "#5A5A5C" : "#D0D0D0";
+  const sliderBgColor = isDark ? "#1C1C1E" : "#FFFFFF";
+  const inactiveTextColor = isDark ? "#999" : "#999";
 
   const handlePrevious = () => {
     setCurrentIndex((prev) => (prev > 0 ? prev - 1 : playlist.length - 1));
@@ -104,21 +128,24 @@ export default function DeviceTab() {
   const currentItem = playlist[currentIndex];
 
   return (
-    <ScrollView
-      style={[styles.container, { backgroundColor }]}
-      contentContainerStyle={[
-        styles.contentContainer,
-        { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 20 },
-      ]}
-    >
-      {/* Pattern Display */}
+    <View style={[styles.container, { backgroundColor }]}>
+      <DeviceHeader
+      />
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={[
+          styles.contentContainer,
+          { paddingBottom: insets.bottom + 20 },
+        ]}
+      >
+        {/* Pattern Display */}
       <View style={styles.patternContainer}>
-        <View style={styles.patternCircle}>
+        <View style={[styles.patternCircle, { borderColor }]}>
           <Svg width={200} height={200} viewBox="0 0 1000 1000">
             <Path
               d={svgPaths[currentItem.svgFile] || svgPaths["01_complex_mandala_rings.svg"]}
               fill="none"
-              stroke={selectedColor}
+              stroke={iconColor}
               strokeWidth="5"
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -150,34 +177,53 @@ export default function DeviceTab() {
       {/* Feature Buttons */}
       <View style={styles.featureButtons}>
         <TouchableOpacity
-          style={[styles.featureButton, intervalPause && styles.featureButtonActive]}
-          onPress={() => setIntervalPause(!intervalPause)}
+          style={[
+            styles.featureButton,
+            intervalPause && { backgroundColor: activeBgColor },
+          ]}
+          onPress={() => {
+            setTempIntervalMinutes(intervalPauseMinutes);
+            setIntervalPauseModalVisible(true);
+          }}
         >
           <Ionicons name="pause-circle-outline" size={24} color={iconColor} />
-          <Text style={[styles.featureText, { color: textColor }]}>间隔暂停</Text>
+          <Text style={[styles.featureText, { color: textColor }]}>
+            {t("intervalPause")}
+            {intervalPause && intervalPauseMinutes > 0 && ` (${intervalPauseMinutes} min)`}
+          </Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.featureButton, autoSleep && styles.featureButtonActive]}
-          onPress={() => setAutoSleep(!autoSleep)}
+          style={[
+            styles.featureButton,
+            autoSleep && { backgroundColor: activeBgColor },
+          ]}
+          onPress={() => {
+            setTempSleepStartTime(sleepStartTime);
+            setTempSleepEndTime(sleepEndTime);
+            setAutoSleepModalVisible(true);
+          }}
         >
           <Ionicons name="time-outline" size={24} color={iconColor} />
-          <Text style={[styles.featureText, { color: textColor }]}>自动睡眠</Text>
+          <Text style={[styles.featureText, { color: textColor }]}>
+            {t("autoSleep")}
+            {autoSleep && sleepStartTime && sleepEndTime && ` (${String(sleepStartTime.getHours()).padStart(2, "0")}:${String(sleepStartTime.getMinutes()).padStart(2, "0")} - ${String(sleepEndTime.getHours()).padStart(2, "0")}:${String(sleepEndTime.getMinutes()).padStart(2, "0")})`}
+          </Text>
         </TouchableOpacity>
       </View>
 
       {/* Brightness Control */}
       <View style={styles.brightnessContainer}>
-        <Text style={[styles.brightnessLabel, { color: textColor }]}>亮度</Text>
-        <View style={styles.brightnessSliderContainer}>
+        <Text style={[styles.brightnessLabel, { color: textColor }]}>{t("brightness")}</Text>
+        <View style={[styles.brightnessSliderContainer, { backgroundColor: sliderBgColor }]}>
           <Slider
             style={styles.brightnessSlider}
             minimumValue={0}
             maximumValue={100}
             value={brightness}
             onValueChange={setBrightness}
-            minimumTrackTintColor={selectedColor}
-            maximumTrackTintColor="#3A3A3C"
-            thumbTintColor={selectedColor}
+            minimumTrackTintColor={sliderActiveColor}
+            maximumTrackTintColor={sliderTrackColor}
+            thumbTintColor={sliderActiveColor}
           />
           <TouchableOpacity
             style={styles.colorPickerButton}
@@ -196,10 +242,11 @@ export default function DeviceTab() {
       {/* Volume Control */}
       <View style={styles.volumeContainer}>
         <View style={styles.volumeHeader}>
-          <Text style={[styles.volumeLabel, { color: textColor }]}>音量</Text>
+          <Text style={[styles.volumeLabel, { color: textColor }]}>{t("volume")}</Text>
           <TouchableOpacity
             style={[
               styles.toggle,
+              { backgroundColor: sliderTrackColor },
               musicEnabled && styles.toggleActive,
             ]}
             onPress={() => setMusicEnabled(!musicEnabled)}
@@ -212,16 +259,16 @@ export default function DeviceTab() {
             />
           </TouchableOpacity>
         </View>
-        <View style={styles.volumeSliderContainer}>
+        <View style={[styles.volumeSliderContainer, { backgroundColor: sliderBgColor }]}>
           <Slider
             style={styles.volumeSlider}
             minimumValue={0}
             maximumValue={100}
             value={volume}
             onValueChange={setVolume}
-            minimumTrackTintColor={selectedColor}
-            maximumTrackTintColor="#3A3A3C"
-            thumbTintColor={selectedColor}
+            minimumTrackTintColor={sliderActiveColor}
+            maximumTrackTintColor={sliderTrackColor}
+            thumbTintColor={sliderActiveColor}
             disabled={!musicEnabled}
           />
           <TouchableOpacity
@@ -232,7 +279,7 @@ export default function DeviceTab() {
             <Ionicons
               name="musical-note"
               size={24}
-              color={musicEnabled ? selectedColor : "#3A3A3C"}
+              color={musicEnabled ? sliderActiveColor : sliderTrackColor}
             />
           </TouchableOpacity>
         </View>
@@ -240,22 +287,22 @@ export default function DeviceTab() {
 
       {/* Playlist */}
       <View style={styles.playlistContainer}>
-        <Text style={[styles.playlistTitle, { color: textColor }]}>Playlist</Text>
+        <Text style={[styles.playlistTitle, { color: textColor }]}>{t("playlist")}</Text>
         {playlist.map((item, index) => (
           <TouchableOpacity
             key={item.id}
             style={[
               styles.playlistItem,
-              index === currentIndex && styles.playlistItemActive,
+              index === currentIndex && { backgroundColor: activeBgColor },
             ]}
             onPress={() => handlePlaylistItem(index)}
           >
             <View style={styles.playlistItemIcon}>
-              <Svg width={40} height={40} viewBox="0 0 1000 1000">
+              <Svg width={128} height={128} viewBox="0 0 1000 1000">
                 <Path
                   d={svgPaths[item.svgFile] || svgPaths["01_complex_mandala_rings.svg"]}
                   fill="none"
-                  stroke={index === currentIndex ? selectedColor : iconColor}
+                  stroke={iconColor}
                   strokeWidth="3"
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -265,13 +312,13 @@ export default function DeviceTab() {
             <Text
               style={[
                 styles.playlistItemText,
-                { color: index === currentIndex ? selectedColor : textColor },
+                { color: textColor },
               ]}
             >
               {item.title}
             </Text>
             {index === currentIndex && (
-              <Ionicons name="play-circle" size={20} color={selectedColor} />
+              <Ionicons name="play-circle" size={20} color={iconColor} />
             )}
           </TouchableOpacity>
         ))}
@@ -281,7 +328,11 @@ export default function DeviceTab() {
       <ColorPickerScreen
         visible={colorPickerVisible}
         onClose={() => setColorPickerVisible(false)}
-        onColorSelect={(color) => setSelectedColor(color)}
+        onColorSelect={(color) => {
+          setSelectedColor(color);
+          // TODO: 发送颜色指令到蓝牙沙盘
+          // 例如: bluetoothService.sendColorCommand(color);
+        }}
       />
 
       {/* White Noise Picker Modal */}
@@ -293,7 +344,166 @@ export default function DeviceTab() {
           console.log("Play music:", musicName);
         }}
       />
-    </ScrollView>
+
+      {/* Interval Pause Modal */}
+      <Modal
+        visible={intervalPauseModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setIntervalPauseModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: sliderBgColor }]}>
+            <Text style={[styles.modalTitle, { color: textColor }]}>{t("intervalPause")}</Text>
+            <Text style={[styles.modalValue, { color: textColor }]}>
+              {Math.round(tempIntervalMinutes)} min
+            </Text>
+            <View style={styles.modalSliderContainer}>
+              <Slider
+                style={styles.modalSlider}
+                minimumValue={0}
+                maximumValue={59}
+                value={tempIntervalMinutes}
+                onValueChange={setTempIntervalMinutes}
+                step={1}
+                minimumTrackTintColor={sliderActiveColor}
+                maximumTrackTintColor={sliderTrackColor}
+                thumbTintColor={sliderActiveColor}
+              />
+              <View style={styles.modalSliderLabels}>
+                <Text style={[styles.modalSliderLabel, { color: inactiveTextColor }]}>0</Text>
+                <Text style={[styles.modalSliderLabel, { color: inactiveTextColor }]}>59</Text>
+              </View>
+            </View>
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonCancel]}
+                onPress={() => setIntervalPauseModalVisible(false)}
+              >
+                <Text style={[styles.modalButtonText, { color: textColor }]}>{t("cancel")}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonConfirm, { backgroundColor: activeBgColor }]}
+                onPress={() => {
+                  setIntervalPauseMinutes(Math.round(tempIntervalMinutes));
+                  setIntervalPause(Math.round(tempIntervalMinutes) > 0);
+                  setIntervalPauseModalVisible(false);
+                }}
+              >
+                <Text style={[styles.modalButtonText, { color: textColor }]}>{t("confirm")}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Auto Sleep Modal */}
+      <Modal
+        visible={autoSleepModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setAutoSleepModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, styles.autoSleepModalContent, { backgroundColor: sliderBgColor }]}>
+            <Text style={[styles.modalTitle, { color: textColor }]}>{t("autoSleep")}</Text>
+            
+            {/* Sleep Start Time */}
+            <View style={styles.timePickerSection}>
+              <Text style={[styles.timePickerLabel, { color: textColor }]}>{t("sleepStartTime")}</Text>
+              <TouchableOpacity
+                style={styles.timePickerButton}
+                onPress={() => {
+                  if (!tempSleepStartTime) {
+                    const now = new Date();
+                    setTempSleepStartTime(now);
+                  }
+                  setShowStartTimePicker(true);
+                }}
+              >
+                <Text style={[styles.timePickerValue, { color: textColor }]}>
+                  {tempSleepStartTime
+                    ? `${String(tempSleepStartTime.getHours()).padStart(2, "0")}:${String(tempSleepStartTime.getMinutes()).padStart(2, "0")}`
+                    : "--"}
+                </Text>
+              </TouchableOpacity>
+              {showStartTimePicker && (
+                <DateTimePicker
+                  value={tempSleepStartTime || new Date()}
+                  mode="time"
+                  is24Hour={true}
+                  display={Platform.OS === "ios" ? "spinner" : "default"}
+                  onChange={(event, selectedTime) => {
+                    setShowStartTimePicker(Platform.OS === "ios");
+                    if (selectedTime && event.type !== "dismissed") {
+                      setTempSleepStartTime(selectedTime);
+                    }
+                  }}
+                />
+              )}
+            </View>
+
+            {/* Sleep End Time */}
+            <View style={styles.timePickerSection}>
+              <Text style={[styles.timePickerLabel, { color: textColor }]}>{t("sleepEndTime")}</Text>
+              <TouchableOpacity
+                style={styles.timePickerButton}
+                onPress={() => {
+                  if (!tempSleepEndTime) {
+                    const now = new Date();
+                    setTempSleepEndTime(now);
+                  }
+                  setShowEndTimePicker(true);
+                }}
+              >
+                <Text style={[styles.timePickerValue, { color: textColor }]}>
+                  {tempSleepEndTime
+                    ? `${String(tempSleepEndTime.getHours()).padStart(2, "0")}:${String(tempSleepEndTime.getMinutes()).padStart(2, "0")}`
+                    : "--"}
+                </Text>
+              </TouchableOpacity>
+              {showEndTimePicker && (
+                <DateTimePicker
+                  value={tempSleepEndTime || new Date()}
+                  mode="time"
+                  is24Hour={true}
+                  display={Platform.OS === "ios" ? "spinner" : "default"}
+                  onChange={(event, selectedTime) => {
+                    setShowEndTimePicker(Platform.OS === "ios");
+                    if (selectedTime && event.type !== "dismissed") {
+                      setTempSleepEndTime(selectedTime);
+                    }
+                  }}
+                />
+              )}
+            </View>
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonCancel]}
+                onPress={() => setAutoSleepModalVisible(false)}
+              >
+                <Text style={[styles.modalButtonText, { color: textColor }]}>{t("cancel")}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonConfirm, { backgroundColor: activeBgColor }]}
+                onPress={() => {
+                  if (tempSleepStartTime && tempSleepEndTime) {
+                    setSleepStartTime(tempSleepStartTime);
+                    setSleepEndTime(tempSleepEndTime);
+                    setAutoSleep(true);
+                  }
+                  setAutoSleepModalVisible(false);
+                }}
+              >
+                <Text style={[styles.modalButtonText, { color: textColor }]}>{t("confirm")}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -301,8 +511,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  scrollView: {
+    flex: 1,
+  },
   contentContainer: {
     paddingHorizontal: 20,
+    paddingTop: 20,
   },
   patternContainer: {
     alignItems: "center",
@@ -313,7 +527,6 @@ const styles = StyleSheet.create({
     height: 200,
     borderRadius: 100,
     borderWidth: 2,
-    borderColor: "#FFFFFF",
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 16,
@@ -349,7 +562,7 @@ const styles = StyleSheet.create({
     backgroundColor: "transparent",
   },
   featureButtonActive: {
-    backgroundColor: "#2C2C2E",
+    // Will be set dynamically
   },
   featureText: {
     fontSize: 12,
@@ -366,6 +579,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
   },
   brightnessSlider: {
     flex: 1,
@@ -397,7 +613,6 @@ const styles = StyleSheet.create({
     width: 50,
     height: 30,
     borderRadius: 15,
-    backgroundColor: "#3A3A3C",
     padding: 3,
     justifyContent: "center",
   },
@@ -418,6 +633,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
   },
   volumeSlider: {
     flex: 1,
@@ -448,11 +666,11 @@ const styles = StyleSheet.create({
     backgroundColor: "transparent",
   },
   playlistItemActive: {
-    backgroundColor: "#2C2C2E",
+    // Will be set dynamically
   },
   playlistItemIcon: {
-    width: 40,
-    height: 40,
+    width: 128,
+    height: 128,
     marginRight: 12,
     justifyContent: "center",
     alignItems: "center",
@@ -461,5 +679,92 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     fontWeight: "500",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  modalContent: {
+    width: "100%",
+    maxWidth: 400,
+    borderRadius: 16,
+    padding: 24,
+    alignItems: "center",
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "600",
+    marginBottom: 24,
+  },
+  modalValue: {
+    fontSize: 32,
+    fontWeight: "700",
+    marginBottom: 32,
+  },
+  modalSliderContainer: {
+    width: "100%",
+    marginBottom: 32,
+  },
+  modalSlider: {
+    width: "100%",
+    height: 40,
+  },
+  modalSliderLabels: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    width: "100%",
+    marginTop: 8,
+  },
+  modalSliderLabel: {
+    fontSize: 12,
+  },
+  modalButtons: {
+    flexDirection: "row",
+    width: "100%",
+    gap: 12,
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalButtonCancel: {
+    backgroundColor: "transparent",
+  },
+  modalButtonConfirm: {
+    // backgroundColor will be set dynamically
+  },
+  modalButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  autoSleepModalContent: {
+    maxWidth: 450,
+  },
+  timePickerSection: {
+    width: "100%",
+    marginBottom: 32,
+  },
+  timePickerLabel: {
+    fontSize: 16,
+    fontWeight: "600",
+    marginBottom: 12,
+  },
+  timePickerValue: {
+    fontSize: 28,
+    fontWeight: "700",
+    textAlign: "center",
+  },
+  timePickerButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    marginBottom: 20,
+    backgroundColor: "transparent",
   },
 });

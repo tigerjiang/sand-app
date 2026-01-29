@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "StickerSmash",
-    "slug": "StickerSmash",
+    "name": "MeditativeSand",
+    "slug": "MeditativeSand",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "stickersmash",
+    "scheme": "meditativesand",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "web": {
@@ -33,7 +33,7 @@
         "NSBluetoothAlwaysUsageDescription": "This app needs Bluetooth to connect to your Oasis devices.",
         "NSBluetoothPeripheralUsageDescription": "This app needs Bluetooth to connect to your Oasis devices."
       },
-      "bundleIdentifier": "com.anonymous.StickerSmash"
+      "bundleIdentifier": "com.anonymous.MeditativeSand"
     },
     "android": {
       "adaptiveIcon": {
@@ -56,7 +56,7 @@
       ],
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.StickerSmash"
+      "package": "com.anonymous.MeditativeSand"
     },
     "experiments": {
       "typedRoutes": true,

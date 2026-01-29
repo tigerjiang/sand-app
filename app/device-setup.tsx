@@ -1,73 +1,88 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { useState } from "react";
-import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Device } from "react-native-ble-plx";
+import { bleManager } from "../utils/bleManager";
 
-interface Device {
+interface DeviceInfo {
   id: string;
   name: string;
 }
 
-// 模拟的蓝牙设备数据
-// 在实际应用中，您需要使用 react-native-ble-plx 或类似的库来扫描真实的蓝牙设备
-const MOCK_DEVICES: Device[] = [
-  { id: "1", name: "OM251100104" },
-  { id: "2", name: "OM251100105" },
-  { id: "3", name: "OM251100106" },
-];
-
 export default function DeviceSetupScreen() {
   const router = useRouter();
-  const [devices, setDevices] = useState<Device[]>([]);
+  const [devices, setDevices] = useState<DeviceInfo[]>([]);
   const [isScanning, setIsScanning] = useState(false);
-  const [bluetoothEnabled, setBluetoothEnabled] = useState(true);
+  const [bluetoothEnabled, setBluetoothEnabled] = useState(false);
+  const scanTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // 模拟蓝牙扫描
+  // 检查蓝牙状态
+  useEffect(() => {
+    checkBluetoothState();
+    return () => {
+      // 组件卸载时清理
+      if (scanTimeoutRef.current) {
+        clearTimeout(scanTimeoutRef.current);
+      }
+      bleManager.stopScanning();
+    };
+  }, []);
+
+  const checkBluetoothState = async () => {
+    const enabled = await bleManager.checkBluetoothState();
+    setBluetoothEnabled(enabled);
+    if (!enabled) {
+      Alert.alert(
+        "蓝牙未开启",
+        "请先开启蓝牙功能",
+        [{ text: "确定" }]
+      );
+    }
+  };
+
+  // 开始蓝牙扫描
   const startScanning = async () => {
+    if (!bluetoothEnabled) {
+      Alert.alert("错误", "请先开启蓝牙功能");
+      return;
+    }
+
     setIsScanning(true);
     setDevices([]);
 
-    // 模拟扫描过程
-    setTimeout(() => {
-      // 模拟找到设备
-      setDevices(MOCK_DEVICES);
-      setIsScanning(false);
-    }, 2000);
+    // 使用 Set 来去重
+    const foundDevices = new Map<string, DeviceInfo>();
 
-    /* 
-    实际蓝牙扫描代码示例（需要安装 react-native-ble-plx）:
-    
-    import { BleManager } from 'react-native-ble-plx';
-    const manager = new BleManager();
-    
-    manager.startDeviceScan(null, null, (error, device) => {
-      if (error) {
-        console.error(error);
-        return;
-      }
-      if (device && device.name && device.name.startsWith('OM')) {
-        setDevices(prevDevices => {
-          const exists = prevDevices.some(d => d.id === device.id);
-          if (!exists) {
-            return [...prevDevices, { id: device.id, name: device.name }];
-          }
-          return prevDevices;
+    // 开始扫描
+    bleManager.startScanning((device: Device) => {
+      if (device.name) {
+        foundDevices.set(device.id, {
+          id: device.id,
+          name: device.name,
         });
+        // 更新设备列表
+        setDevices(Array.from(foundDevices.values()));
       }
-    });
-    
-    setTimeout(() => {
-      manager.stopDeviceScan();
+    }, "OM");
+
+    // 10秒后停止扫描
+    scanTimeoutRef.current = setTimeout(() => {
+      bleManager.stopScanning();
       setIsScanning(false);
     }, 10000);
-    */
   };
 
   const stopScanning = () => {
+    if (scanTimeoutRef.current) {
+      clearTimeout(scanTimeoutRef.current);
+      scanTimeoutRef.current = null;
+    }
+    bleManager.stopScanning();
     setIsScanning(false);
   };
 
-  const handleConnect = (device: Device) => {
+  const handleConnect = (device: DeviceInfo) => {
     router.push({
       pathname: "/device-connect",
       params: { deviceId: device.id, deviceName: device.name },
@@ -76,12 +91,13 @@ export default function DeviceSetupScreen() {
 
   const handleAddNewDevice = () => {
     if (!bluetoothEnabled) {
-      // 提示用户开启蓝牙
-      alert("Please enable Bluetooth first");
+      Alert.alert("错误", "请先开启蓝牙功能");
       return;
     }
     if (!isScanning) {
       startScanning();
+    } else {
+      stopScanning();
     }
   };
 
@@ -133,6 +149,9 @@ export default function DeviceSetupScreen() {
         {!isScanning && devices.length === 0 && (
           <View style={styles.infoContainer}>
             <Text style={styles.infoText}>
+              点击"ADD NEW DEVICE"按钮开始扫描附近的 Oasis 设备
+            </Text>
+            <Text style={styles.infoText}>
               Your Oasis Device requires an internet connection to control the device and add patterns
             </Text>
           </View>
@@ -141,8 +160,14 @@ export default function DeviceSetupScreen() {
 
       {/* Add New Device Button */}
       <View style={styles.footer}>
-        <TouchableOpacity style={styles.addButton} onPress={handleAddNewDevice}>
-          <Text style={styles.addButtonText}>ADD NEW DEVICE</Text>
+        <TouchableOpacity
+          style={[styles.addButton, (!bluetoothEnabled || isScanning) && styles.addButtonDisabled]}
+          onPress={handleAddNewDevice}
+          disabled={!bluetoothEnabled}
+        >
+          <Text style={styles.addButtonText}>
+            {isScanning ? "停止扫描" : "ADD NEW DEVICE"}
+          </Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -278,6 +303,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     letterSpacing: 1,
+  },
+  addButtonDisabled: {
+    opacity: 0.5,
   },
 });
 

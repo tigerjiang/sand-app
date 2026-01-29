@@ -9,8 +9,6 @@ export default function TabsLayout() {
   const tabBarBorderColor = isDark ? "#2C2C2E" : "#E0E0E0";
   const tabBarActiveColor = isDark ? "#FFFFFF" : "#2C2C2C";
   const tabBarInactiveColor = isDark ? "#666" : "#999";
-
-export default function TabsLayout() {
   return (
     <Tabs
       screenOptions={{

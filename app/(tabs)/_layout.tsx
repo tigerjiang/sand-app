@@ -10,6 +10,7 @@ export default function TabsLayout() {
   const tabBarActiveColor = isDark ? "#FFFFFF" : "#2C2C2C";
   const tabBarInactiveColor = isDark ? "#666" : "#999";
 
+export default function TabsLayout() {
   return (
     <Tabs
       screenOptions={{

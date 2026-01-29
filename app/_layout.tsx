@@ -85,6 +85,35 @@ const headerStyles = StyleSheet.create({
 function RootLayoutContent() {
   const { isDark } = useTheme();
 
+  const headerBgColor = isDark ? "#1C1C1E" : "#FFF";
+  const headerTextColor = isDark ? "#FFF" : "#000";
+  const iconColor = isDark ? "#FFF" : "#000";
+  const circleBgColor = isDark ? "#2C2C2E" : "#F0F0F0";
+  const waveColor = isDark ? "#FFF" : "#000";
+
+  return (
+    <View style={[headerStyles.header, { paddingTop: insets.top + 20, backgroundColor: headerBgColor }]}>
+      <TouchableOpacity onPress={() => router.back()} style={headerStyles.backButton}>
+        <Ionicons name="arrow-back" size={24} color={iconColor} />
+      </TouchableOpacity>
+      <Text style={[headerStyles.headerTitle, { fontSize: 14, color: headerTextColor }]}>
+        {t("settings").toUpperCase()}
+      </Text>
+      <TouchableOpacity onPress={() => router.back()} style={headerStyles.menuButton}>
+        <View style={[headerStyles.circleIcon, { backgroundColor: circleBgColor }]}>
+          {/* 波浪线图标 - 同心圆波浪 */}
+          <View style={headerStyles.waveIcon}>
+            <View style={[headerStyles.waveCircle, { width: 8, height: 8, borderRadius: 4, borderColor: waveColor }]} />
+            <View style={[headerStyles.waveCircle, { width: 12, height: 12, borderRadius: 6, borderColor: waveColor }]} />
+            <View style={[headerStyles.waveCircle, { width: 16, height: 16, borderRadius: 8, borderColor: waveColor }]} />
+          </View>
+        </View>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+export default function RootLayout() {
   return (
     <>
       <StatusBar style={isDark ? "light" : "dark"} />

@@ -49,9 +49,9 @@ export default function LanguageScreen() {
   };
 
   const handleContinue = () => {
-    // 从 register 进入时，点击 CONTINUE 跳转到 profile 页面
+    // 从 register 进入时，点击 CONTINUE 跳转到 profile 页面，传递 from=register 参数
     if (isFromRegister) {
-      router.push("/profile");
+      router.push("/profile?from=register");
     }
   };
 
@@ -65,15 +65,10 @@ export default function LanguageScreen() {
     <View style={[styles.container, { backgroundColor }]}>
       {/* Main Content */}
       <View style={styles.mainContent}>
-        {/* 从 register 进入时显示 "Get started" 标题 */}
-        {isFromRegister && (
-          <Text style={[styles.mainTitle, { color: textColor }]}>{t("getStarted")}</Text>
-        )}
-        
-        {/* 副标题：从 register 进入时显示，从 settings 进入时作为主标题 */}
-        <Text style={[isFromRegister ? styles.subtitle : styles.title, { color: textColor }]}>
-          {t("chooseLanguage")}
-        </Text>
+        {/* 从 register 进入时显示 "SIGN UP" 标题 */}
+       
+      
+          <Text style={[styles.title, { color: textColor }]}>{t("chooseLanguage")}</Text>
 
         {/* Language List */}
         <ScrollView 

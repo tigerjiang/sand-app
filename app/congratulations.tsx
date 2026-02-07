@@ -1,16 +1,22 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { useTheme } from "../contexts/ThemeContext";
 
 export default function CongratulationsScreen() {
   const router = useRouter();
+  const { isDark } = useTheme();
 
   const handleBackToHome = () => {
     router.push("/device-setup");
   };
 
+  const backgroundColor = isDark ? "#000000" : "#F5F5F0";
+  const textColor = isDark ? "#FFFFFF" : "#000000";
+  const messageColor = isDark ? "#8E8E93" : "#666";
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor }]}>
       {/* Success Icon */}
       <View style={styles.iconContainer}>
         <View style={styles.iconCircle}>
@@ -21,8 +27,8 @@ export default function CongratulationsScreen() {
       </View>
 
       {/* Text Content */}
-      <Text style={styles.title}>Congratulations!</Text>
-      <Text style={styles.message}>
+      <Text style={[styles.title, { color: textColor }]}>Congratulations!</Text>
+      <Text style={[styles.message, { color: messageColor }]}>
         Your account is now active and ready for use. You'll be taken to the home page shortly.
       </Text>
 
@@ -37,7 +43,6 @@ export default function CongratulationsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F5F5F0",
     justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: 40,
@@ -65,13 +70,11 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 32,
     fontWeight: "bold",
-    color: "#000",
     marginBottom: 20,
     textAlign: "center",
   },
   message: {
     fontSize: 16,
-    color: "#666",
     textAlign: "center",
     lineHeight: 24,
     marginBottom: 40,

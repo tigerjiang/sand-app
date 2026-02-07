@@ -3,10 +3,12 @@ import { useRouter } from "expo-router";
 import { useState } from "react";
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { useI18n } from "../contexts/I18nContext";
+import { useTheme } from "../contexts/ThemeContext";
 
 export default function LoginScreen() {
   const router = useRouter();
   const { t } = useI18n();
+  const { isDark } = useTheme();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -19,6 +21,7 @@ export default function LoginScreen() {
   const handleForgotPassword = () => {
     // 处理忘记密码
     console.log("Forgot password");
+    router.push("/forgot-password");
   };
 
   const handleFacebookLogin = () => {
@@ -31,17 +34,24 @@ export default function LoginScreen() {
     console.log("Google login");
   };
 
+  const backgroundColor = isDark ? "#000000" : "#F5F5F0";
+  const textColor = isDark ? "#FFFFFF" : "#000000";
+  const inputBgColor = isDark ? "#1C1C1E" : "#FFF";
+  const placeholderColor = isDark ? "#8E8E93" : "#999";
+  const iconColor = isDark ? "#FFFFFF" : "#000000";
+  const linkColor = isDark ? "#0A84FF" : "#4A90E2";
+
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+    <ScrollView style={[styles.container, { backgroundColor }]} contentContainerStyle={styles.contentContainer}>
       {/* Main Content */}
       <View style={styles.mainContent}>
-        <Text style={styles.title}>{t("login")}</Text>
+        <Text style={[styles.title, { color: textColor }]}>{t("login")}</Text>
 
         {/* Email Input */}
         <TextInput
-          style={styles.input}
+          style={[styles.input, { backgroundColor: inputBgColor, color: textColor }]}
           placeholder={t("email")}
-          placeholderTextColor="#999"
+          placeholderTextColor={placeholderColor}
           value={email}
           onChangeText={setEmail}
           keyboardType="email-address"
@@ -49,11 +59,11 @@ export default function LoginScreen() {
         />
 
         {/* Password Input */}
-        <View style={styles.passwordContainer}>
+        <View style={[styles.passwordContainer, { backgroundColor: inputBgColor }]}>
           <TextInput
-            style={styles.passwordInput}
+            style={[styles.passwordInput, { color: textColor }]}
             placeholder={t("password")}
-            placeholderTextColor="#999"
+            placeholderTextColor={placeholderColor}
             value={password}
             onChangeText={setPassword}
             secureTextEntry={!showPassword}
@@ -62,7 +72,7 @@ export default function LoginScreen() {
             onPress={() => setShowPassword(!showPassword)}
             style={styles.eyeIcon}
           >
-            <Ionicons name={showPassword ? "eye-off" : "eye"} size={20} color="#000" />
+            <Ionicons name={showPassword ? "eye-off" : "eye"} size={20} color={iconColor} />
           </TouchableOpacity>
         </View>
 
@@ -73,20 +83,20 @@ export default function LoginScreen() {
 
         {/* Forgot Password */}
         <TouchableOpacity onPress={handleForgotPassword} style={styles.forgotPassword}>
-          <Text style={styles.forgotPasswordText}>
-            {t("forgotPassword")} <Text style={styles.clickHereText}>{t("clickHere")}</Text>
+          <Text style={[styles.forgotPasswordText, { color: textColor }]}>
+            {t("forgotPassword")} <Text style={[styles.clickHereText, { color: linkColor }]}>{t("clickHere")}</Text>
           </Text>
         </TouchableOpacity>
 
         {/* Social Login */}
-        <Text style={styles.orText}>{t("orContinueWith")}</Text>
+        <Text style={[styles.orText, { color: textColor }]}>{t("orContinueWith")}</Text>
         <View style={styles.socialButtons}>
-          <TouchableOpacity style={styles.socialButton} onPress={handleFacebookLogin}>
+          <TouchableOpacity style={[styles.socialButton, { backgroundColor: inputBgColor }]} onPress={handleFacebookLogin}>
             <View style={styles.facebookIcon}>
               <Text style={styles.facebookText}>f</Text>
             </View>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.socialButton} onPress={handleGoogleLogin}>
+          <TouchableOpacity style={[styles.socialButton, { backgroundColor: inputBgColor }]} onPress={handleGoogleLogin}>
             <Text style={styles.googleText}>G</Text>
           </TouchableOpacity>
         </View>
@@ -98,7 +108,6 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F5F5F0",
   },
   contentContainer: {
     flexGrow: 1,
@@ -111,11 +120,9 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 32,
     fontWeight: "bold",
-    color: "#000",
     marginBottom: 30,
   },
   input: {
-    backgroundColor: "#FFF",
     borderRadius: 8,
     paddingHorizontal: 16,
     paddingVertical: 14,
@@ -130,7 +137,6 @@ const styles = StyleSheet.create({
   passwordContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FFF",
     borderRadius: 8,
     marginBottom: 16,
     shadowColor: "#000",
@@ -166,16 +172,13 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
   forgotPasswordText: {
-    color: "#000",
     fontSize: 14,
     textAlign: "center",
   },
   clickHereText: {
-    color: "#4A90E2",
   },
   orText: {
     textAlign: "center",
-    color: "#000",
     fontSize: 14,
     marginBottom: 20,
   },
@@ -188,7 +191,6 @@ const styles = StyleSheet.create({
   socialButton: {
     width: 60,
     height: 60,
-    backgroundColor: "#FFF",
     borderRadius: 8,
     justifyContent: "center",
     alignItems: "center",

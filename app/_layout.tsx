@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Stack, useRouter } from "expo-router";
+import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -54,6 +54,83 @@ function CustomHeader({
       ) : (
         <View style={headerStyles.menuButton} />
       )}
+    </View>
+  );
+}
+
+function LanguageHeader() {
+  const router = useRouter();
+  const params = useLocalSearchParams();
+  const insets = useSafeAreaInsets();
+  const { isDark } = useTheme();
+  const { t } = useI18n();
+  
+  // 判断是否从 register 页面进入
+  const isFromRegister = params.from === "register" || params.fromRegister === "true";
+  const title = isFromRegister ? t("signUp") : "LANGUAGE";
+
+  const headerBgColor = isDark ? "#1C1C1E" : "#FFF";
+  const headerTextColor = isDark ? "#FFF" : "#000";
+  const iconColor = isDark ? "#FFF" : "#000";
+
+  return (
+    <View
+      style={[
+        headerStyles.header,
+        { paddingTop: insets.top + 20, backgroundColor: headerBgColor },
+      ]}
+    >
+      <TouchableOpacity
+        onPress={() => router.back()}
+        style={headerStyles.backButton}
+      >
+        <Ionicons name="arrow-back" size={24} color={iconColor} />
+      </TouchableOpacity>
+      <Text style={[headerStyles.headerTitle, { color: headerTextColor }]}>
+        {title}
+      </Text>
+      <View style={headerStyles.menuButton} />
+    </View>
+  );
+}
+
+function ProfileHeader() {
+  const router = useRouter();
+  const params = useLocalSearchParams();
+  const insets = useSafeAreaInsets();
+  const { isDark } = useTheme();
+  const { t } = useI18n();
+  
+  // 判断是否从 register 页面进入
+  const isFromRegister = params.from === "register" || params.fromRegister === "true";
+  const title = isFromRegister ? t("signUp") : "PROFILE";
+
+  const headerBgColor = isDark ? "#1C1C1E" : "#FFF";
+  const headerTextColor = isDark ? "#FFF" : "#000";
+  const iconColor = isDark ? "#FFF" : "#000";
+
+  return (
+    <View
+      style={[
+        headerStyles.header,
+        { paddingTop: insets.top + 20, backgroundColor: headerBgColor },
+      ]}
+    >
+      <TouchableOpacity
+        onPress={() => router.back()}
+        style={headerStyles.backButton}
+      >
+        <Ionicons name="arrow-back" size={24} color={iconColor} />
+      </TouchableOpacity>
+      <Text style={[headerStyles.headerTitle, { color: headerTextColor }]}>
+        {title}
+      </Text>
+      <TouchableOpacity
+        onPress={() => router.push("/settings")}
+        style={headerStyles.menuButton}
+      >
+        <Ionicons name="menu" size={24} color={iconColor} />
+      </TouchableOpacity>
     </View>
   );
 }
@@ -170,14 +247,14 @@ function RootLayoutContent() {
           name="language"
           options={{
             headerShown: true,
-            header: () => <CustomHeader title="LANGUAGE" showMenu={false} />,
+            header: () => <LanguageHeader />,
           }}
         />
         <Stack.Screen
           name="profile"
           options={{
             headerShown: true,
-            header: () => <CustomHeader title="PROFILE" />,
+            header: () => <ProfileHeader />,
           }}
         />
 

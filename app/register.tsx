@@ -1,10 +1,18 @@
 import { useRouter } from "expo-router";
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { useI18n } from "../contexts/I18nContext";
+import { useTheme } from "../contexts/ThemeContext";
 
 export default function RegisterScreen() {
   const router = useRouter();
   const { t } = useI18n();
+  const { isDark } = useTheme();
 
   const handleFacebookRegister = () => {
     // 处理Facebook注册
@@ -27,38 +35,64 @@ export default function RegisterScreen() {
     router.push("/login");
   };
 
+  const backgroundColor = isDark ? "#000000" : "#F5F5F0";
+  const textColor = isDark ? "#FFFFFF" : "#000000";
+  const inputBgColor = isDark ? "#1C1C1E" : "#FFF";
+  const linkColor = isDark ? "#0A84FF" : "#4A90E2";
+
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+    <ScrollView
+      style={[styles.container, { backgroundColor }]}
+      contentContainerStyle={styles.contentContainer}
+    >
       {/* Main Content */}
       <View style={styles.mainContent}>
-        <Text style={styles.title}>{t("letsGetYouIn")}</Text>
+        <Text style={[styles.title, { color: textColor }]}>
+          {t("letsGetYouIn")}
+        </Text>
 
         {/* Facebook Button */}
-        <TouchableOpacity style={styles.socialButton} onPress={handleFacebookRegister}>
+        <TouchableOpacity
+          style={[styles.socialButton, { backgroundColor: inputBgColor }]}
+          onPress={handleFacebookRegister}
+        >
           <View style={styles.facebookIcon}>
             <Text style={styles.facebookText}>f</Text>
           </View>
-          <Text style={styles.socialButtonText}>{t("continueWithFacebook")}</Text>
+          <Text style={[styles.socialButtonText, { color: textColor }]}>
+            {t("continueWithFacebook")}
+          </Text>
         </TouchableOpacity>
 
         {/* Google Button */}
-        <TouchableOpacity style={styles.socialButton} onPress={handleGoogleRegister}>
+        <TouchableOpacity
+          style={[styles.socialButton, { backgroundColor: inputBgColor }]}
+          onPress={handleGoogleRegister}
+        >
           <Text style={styles.googleIcon}>G</Text>
-          <Text style={styles.socialButtonText}>{t("continueWithGoogle")}</Text>
+          <Text style={[styles.socialButtonText, { color: textColor }]}>
+            {t("continueWithGoogle")}
+          </Text>
         </TouchableOpacity>
 
         {/* Or Separator */}
-        <Text style={styles.orText}>{t("or")}</Text>
+        <Text style={[styles.orText, { color: textColor }]}>{t("or")}</Text>
 
         {/* Email Register Button */}
-        <TouchableOpacity style={styles.emailButton} onPress={handleEmailRegister}>
+        <TouchableOpacity
+          style={styles.emailButton}
+          onPress={handleEmailRegister}
+        >
           <Text style={styles.emailButtonText}>{t("signUpWithPassword")}</Text>
         </TouchableOpacity>
 
         {/* Login Link */}
         <TouchableOpacity onPress={handleLogin} style={styles.loginLink}>
-          <Text style={styles.loginText}>
-            {t("alreadyHaveAccount")} <Text style={styles.loginLinkText}>{t("logIn")}</Text>
+          <Text style={[styles.loginText, { color: textColor }]}>
+            {t("alreadyHaveAccount")}{" "}
+            <Text style={[styles.loginLinkText, { color: linkColor }]}>
+              {t("logIn")}
+            </Text>
           </Text>
         </TouchableOpacity>
       </View>
@@ -69,7 +103,6 @@ export default function RegisterScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F5F5F0",
   },
   contentContainer: {
     flexGrow: 1,
@@ -82,13 +115,11 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 32,
     fontWeight: "bold",
-    color: "#000",
     marginBottom: 30,
   },
   socialButton: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FFF",
     borderRadius: 8,
     paddingVertical: 16,
     paddingHorizontal: 20,
@@ -122,14 +153,12 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   socialButtonText: {
-    color: "#2C2C2C",
     fontSize: 14,
     fontWeight: "600",
     letterSpacing: 0.5,
   },
   orText: {
     textAlign: "center",
-    color: "#000",
     fontSize: 16,
     marginVertical: 20,
   },
@@ -151,13 +180,10 @@ const styles = StyleSheet.create({
     marginBottom: 40,
   },
   loginText: {
-    color: "#000",
     fontSize: 14,
     textAlign: "center",
   },
   loginLinkText: {
-    color: "#4A90E2",
     fontWeight: "500",
   },
 });
-

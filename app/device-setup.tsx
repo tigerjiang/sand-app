@@ -3,6 +3,7 @@ import { useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Device } from "react-native-ble-plx";
+import { useTheme } from "../contexts/ThemeContext";
 import { bleManager } from "../utils/bleManager";
 
 interface DeviceInfo {
@@ -12,6 +13,7 @@ interface DeviceInfo {
 
 export default function DeviceSetupScreen() {
   const router = useRouter();
+  const { isDark } = useTheme();
   const [devices, setDevices] = useState<DeviceInfo[]>([]);
   const [isScanning, setIsScanning] = useState(false);
   const [bluetoothEnabled, setBluetoothEnabled] = useState(false);
@@ -101,10 +103,19 @@ export default function DeviceSetupScreen() {
     }
   };
 
+  const backgroundColor = isDark ? "#000000" : "#F5F5F0";
+  const textColor = isDark ? "#FFFFFF" : "#000000";
+  const subtitleColor = isDark ? "#8E8E93" : "#666";
+  const headerBgColor = isDark ? "#1C1C1E" : "#2C2C2C";
+  const searchingBgColor = isDark ? "#1C1C1E" : "#FFF";
+  const deviceItemBgColor = isDark ? "#1C1C1E" : "#FFF";
+  const deviceItemBorderColor = isDark ? "#3A3A3C" : "#000";
+  const indicatorColor = isDark ? "#FFFFFF" : "#2C2C2C";
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor }]}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: headerBgColor }]}>
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle}>DEVICES</Text>
           <TouchableOpacity style={styles.menuButton}>
@@ -115,26 +126,26 @@ export default function DeviceSetupScreen() {
 
       {/* Main Content */}
       <ScrollView style={styles.mainContent} contentContainerStyle={styles.contentContainer}>
-        <Text style={styles.title}>Welcome to Oasis Control</Text>
-        <Text style={styles.subtitle}>
+        <Text style={[styles.title, { color: textColor }]}>Welcome to Oasis Control</Text>
+        <Text style={[styles.subtitle, { color: subtitleColor }]}>
           We'll guide you through your device setup...
         </Text>
 
         {isScanning && (
-          <View style={styles.searchingContainer}>
-            <ActivityIndicator size="small" color="#2C2C2C" />
-            <Text style={styles.searchingText}>Searching your devices</Text>
+          <View style={[styles.searchingContainer, { backgroundColor: searchingBgColor }]}>
+            <ActivityIndicator size="small" color={indicatorColor} />
+            <Text style={[styles.searchingText, { color: textColor }]}>Searching your devices</Text>
           </View>
         )}
 
         {devices.length > 0 && (
           <View style={styles.devicesSection}>
-            <Text style={styles.devicesTitle}>Available Devices</Text>
-            <Text style={styles.devicesSubtitle}>Select the device you want to connect:</Text>
+            <Text style={[styles.devicesTitle, { color: textColor }]}>Available Devices</Text>
+            <Text style={[styles.devicesSubtitle, { color: subtitleColor }]}>Select the device you want to connect:</Text>
 
             {devices.map((device) => (
-              <View key={device.id} style={styles.deviceItem}>
-                <Text style={styles.deviceName}>{device.name}</Text>
+              <View key={device.id} style={[styles.deviceItem, { backgroundColor: deviceItemBgColor, borderColor: deviceItemBorderColor }]}>
+                <Text style={[styles.deviceName, { color: textColor }]}>{device.name}</Text>
                 <TouchableOpacity
                   style={styles.connectButton}
                   onPress={() => handleConnect(device)}
@@ -148,10 +159,10 @@ export default function DeviceSetupScreen() {
 
         {!isScanning && devices.length === 0 && (
           <View style={styles.infoContainer}>
-            <Text style={styles.infoText}>
+            <Text style={[styles.infoText, { color: subtitleColor }]}>
               点击"ADD NEW DEVICE"按钮开始扫描附近的 Oasis 设备
             </Text>
-            <Text style={styles.infoText}>
+            <Text style={[styles.infoText, { color: subtitleColor }]}>
               Your Oasis Device requires an internet connection to control the device and add patterns
             </Text>
           </View>
@@ -177,10 +188,8 @@ export default function DeviceSetupScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F5F5F0",
   },
   header: {
-    backgroundColor: "#2C2C2C",
     paddingTop: 60,
     paddingBottom: 20,
   },
@@ -210,19 +219,16 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: "bold",
-    color: "#000",
     marginBottom: 10,
   },
   subtitle: {
     fontSize: 14,
-    color: "#666",
     marginBottom: 30,
   },
   searchingContainer: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#FFF",
     borderRadius: 8,
     padding: 20,
     marginBottom: 20,
@@ -235,7 +241,6 @@ const styles = StyleSheet.create({
   searchingText: {
     marginLeft: 10,
     fontSize: 16,
-    color: "#000",
   },
   devicesSection: {
     marginTop: 20,
@@ -243,28 +248,23 @@ const styles = StyleSheet.create({
   devicesTitle: {
     fontSize: 24,
     fontWeight: "bold",
-    color: "#000",
     marginBottom: 8,
   },
   devicesSubtitle: {
     fontSize: 14,
-    color: "#666",
     marginBottom: 20,
   },
   deviceItem: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FFF",
     borderRadius: 8,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: "#000",
   },
   deviceName: {
     flex: 1,
     fontSize: 16,
-    color: "#000",
     fontWeight: "500",
   },
   connectButton: {
@@ -284,7 +284,6 @@ const styles = StyleSheet.create({
   },
   infoText: {
     fontSize: 14,
-    color: "#666",
     lineHeight: 20,
   },
   footer: {

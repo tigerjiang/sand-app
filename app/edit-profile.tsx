@@ -3,10 +3,12 @@ import { useRouter } from "expo-router";
 import { useState } from "react";
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { useI18n } from "../contexts/I18nContext";
+import { useTheme } from "../contexts/ThemeContext";
 
 export default function EditProfileScreen() {
   const router = useRouter();
   const { t } = useI18n();
+  const { isDark } = useTheme();
   const [name, setName] = useState("zehu");
   const [nickname, setNickname] = useState("zehu");
   const [email, setEmail] = useState("zehu@briskitgrills.com");
@@ -21,53 +23,63 @@ export default function EditProfileScreen() {
     console.log("Delete account");
   };
 
+  const backgroundColor = isDark ? "#000000" : "#F5F5F0";
+  const textColor = isDark ? "#FFFFFF" : "#000000";
+  const inputBgColor = isDark ? "#1C1C1E" : "#E8E8E8";
+  const placeholderColor = isDark ? "#8E8E93" : "#999";
+  const iconColor = isDark ? "#8E8E93" : "#999";
+  const editIconBgColor = isDark ? "#2C2C2E" : "#FFF";
+  const editIconBorderColor = isDark ? "#3A3A3C" : "#E8E8E8";
+  const editIconTextColor = isDark ? "#FFFFFF" : "#2C2C2C";
+  const profileBgColor = isDark ? "#2C2C2E" : "#E8E8E8";
+
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+    <ScrollView style={[styles.container, { backgroundColor }]} contentContainerStyle={styles.contentContainer}>
       {/* Main Content */}
       <View style={styles.mainContent}>
         {/* Profile Picture */}
         <View style={styles.profilePictureContainer}>
-          <View style={styles.profilePicture}>
-            <Ionicons name="person" size={60} color="#999" />
+          <View style={[styles.profilePicture, { backgroundColor: profileBgColor }]}>
+            <Ionicons name="person" size={60} color={iconColor} />
           </View>
-          <TouchableOpacity style={styles.editIcon}>
-            <Ionicons name="pencil" size={16} color="#2C2C2C" />
+          <TouchableOpacity style={[styles.editIcon, { backgroundColor: editIconBgColor, borderColor: editIconBorderColor }]}>
+            <Ionicons name="pencil" size={16} color={editIconTextColor} />
           </TouchableOpacity>
         </View>
 
         {/* Name Input */}
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>{t("name")}</Text>
+          <Text style={[styles.label, { color: textColor }]}>{t("name")}</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: inputBgColor, color: textColor }]}
             value={name}
             onChangeText={setName}
             placeholder={t("name")}
-            placeholderTextColor="#999"
+            placeholderTextColor={placeholderColor}
           />
         </View>
 
         {/* Nickname Input */}
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>{t("nickname")}</Text>
+          <Text style={[styles.label, { color: textColor }]}>{t("nickname")}</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: inputBgColor, color: textColor }]}
             value={nickname}
             onChangeText={setNickname}
             placeholder={t("nickname")}
-            placeholderTextColor="#999"
+            placeholderTextColor={placeholderColor}
           />
         </View>
 
         {/* Email Input */}
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>{t("email")}</Text>
+          <Text style={[styles.label, { color: textColor }]}>{t("email")}</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: inputBgColor, color: textColor }]}
             value={email}
             onChangeText={setEmail}
             placeholder={t("email")}
-            placeholderTextColor="#999"
+            placeholderTextColor={placeholderColor}
             keyboardType="email-address"
             autoCapitalize="none"
           />
@@ -90,7 +102,6 @@ export default function EditProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F5F5F0",
   },
   contentContainer: {
     flexGrow: 1,
@@ -110,7 +121,6 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: "#E8E8E8",
     justifyContent: "center",
     alignItems: "center",
   },
@@ -121,28 +131,23 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: "#FFF",
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 2,
-    borderColor: "#E8E8E8",
   },
   inputGroup: {
     marginBottom: 24,
   },
   label: {
     fontSize: 14,
-    color: "#000",
     fontWeight: "500",
     marginBottom: 8,
   },
   input: {
-    backgroundColor: "#E8E8E8",
     borderRadius: 8,
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 16,
-    color: "#999",
   },
   submitButton: {
     backgroundColor: "#2C2C2C",

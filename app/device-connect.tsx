@@ -2,6 +2,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { useI18n } from "../contexts/I18nContext";
+import { useDevice } from "../contexts/DeviceContext";
+import { useTheme } from "../contexts/ThemeContext";
 import { bleManager, ProvisionResponse } from "../utils/bleManager";
 import {
   DeviceState,
@@ -25,6 +28,7 @@ export default function DeviceConnectScreen() {
   const params = useLocalSearchParams();
   const { t } = useI18n();
   const { setCurrentDevice } = useDevice();
+  const { isDark } = useTheme();
   const deviceId = params.deviceId as string;
   const deviceName = params.deviceName as string;
 
@@ -295,38 +299,56 @@ export default function DeviceConnectScreen() {
     }
   };
 
+  const backgroundColor = isDark ? "#000000" : "#F5F5F0";
+  const textColor = isDark ? "#FFFFFF" : "#000000";
+  const subtitleColor = isDark ? "#8E8E93" : "#666";
+  const inputBgColor = isDark ? "#1C1C1E" : "#FFF";
+  const placeholderColor = isDark ? "#8E8E93" : "#999";
+  const iconColor = isDark ? "#FFFFFF" : "#000000";
+  const deviceInfoBgColor = isDark ? "#1C1C1E" : "#E8E8E8";
+  const statusBgColor = isDark ? "#1C1C1E" : "#FFF";
+  const infoBoxBgColor = isDark ? "#1C1C1E" : "#FFF";
+  const infoLabelColor = isDark ? "#8E8E93" : "#666";
+  const infoValueColor = isDark ? "#FFFFFF" : "#000000";
+  const heartbeatBgColor = isDark ? "#1C1C1E" : "#FFF";
+  const heartbeatLabelColor = isDark ? "#8E8E93" : "#666";
+  const heartbeatValueColor = isDark ? "#FFFFFF" : "#000000";
+  const heartbeatBorderColor = isDark ? "#2C2C2E" : "#F0F0F0";
+  const noteColor = isDark ? "#8E8E93" : "#999";
+  const indicatorColor = isDark ? "#FFFFFF" : "#2C2C2C";
+
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+    <ScrollView style={[styles.container, { backgroundColor }]} contentContainerStyle={styles.contentContainer}>
       {/* Main Content */}
       <View style={styles.mainContent}>
-        <Text style={styles.title}>{t("deviceSetup")}</Text>
-        <Text style={styles.subtitle}>
+        <Text style={[styles.title, { color: textColor }]}>{t("deviceSetup")}</Text>
+        <Text style={[styles.subtitle, { color: subtitleColor }]}>
           {t("welcome")} zehu. {t("nowLetsSetup")}
         </Text>
 
         {/* Device Info */}
-        <View style={styles.deviceInfo}>
-          <Text style={styles.deviceInfoText}>{t("device")}: {deviceName}</Text>
+        <View style={[styles.deviceInfo, { backgroundColor: deviceInfoBgColor }]}>
+          <Text style={[styles.deviceInfoText, { color: textColor }]}>{t("device")}: {deviceName}</Text>
         </View>
 
         {/* WiFi SSID Input */}
-        <Text style={styles.label}>{t("wifiSSID24GHz")}</Text>
+        <Text style={[styles.label, { color: textColor }]}>{t("wifiSSID24GHz")}</Text>
         <TextInput
-          style={styles.input}
+          style={[styles.input, { backgroundColor: inputBgColor, color: textColor }]}
           placeholder={t("enterWiFiSSID")}
-          placeholderTextColor="#999"
+          placeholderTextColor={placeholderColor}
           value={ssid}
           onChangeText={setSsid}
           autoCapitalize="none"
         />
 
         {/* WiFi Password Input */}
-        <Text style={styles.label}>{t("wifiPassword")}</Text>
-        <View style={styles.passwordContainer}>
+        <Text style={[styles.label, { color: textColor }]}>{t("wifiPassword")}</Text>
+        <View style={[styles.passwordContainer, { backgroundColor: inputBgColor }]}>
           <TextInput
-            style={styles.passwordInput}
+            style={[styles.passwordInput, { color: textColor }]}
             placeholder={t("enterWiFiPassword")}
-            placeholderTextColor="#999"
+            placeholderTextColor={placeholderColor}
             value={password}
             onChangeText={setPassword}
             secureTextEntry={!showPassword}
@@ -336,18 +358,19 @@ export default function DeviceConnectScreen() {
             onPress={() => setShowPassword(!showPassword)}
             style={styles.eyeIcon}
           >
-            <Ionicons name={showPassword ? "eye-off" : "eye"} size={20} color="#000" />
+            <Ionicons name={showPassword ? "eye-off" : "eye"} size={20} color={iconColor} />
           </TouchableOpacity>
         </View>
 
         {/* Provision Status */}
         {provisionStatusText && (
-          <View style={styles.statusContainer}>
+          <View style={[styles.statusContainer, { backgroundColor: statusBgColor }]}>
             {isConnecting && (
-              <ActivityIndicator size="small" color="#2C2C2C" style={styles.statusIndicator} />
+              <ActivityIndicator size="small" color={indicatorColor} style={styles.statusIndicator} />
             )}
             <Text style={[
               styles.statusText,
+              { color: textColor },
               provisionStatus === "success" && styles.statusTextSuccess,
               provisionStatus === "fail" && styles.statusTextError,
             ]}>
@@ -358,9 +381,9 @@ export default function DeviceConnectScreen() {
 
         {/* MQTT Status */}
         {mqttStatus && provisionStatus === "success" && (
-          <View style={styles.statusContainer}>
-            <ActivityIndicator size="small" color="#2C2C2C" style={styles.statusIndicator} />
-            <Text style={styles.statusText}>
+          <View style={[styles.statusContainer, { backgroundColor: statusBgColor }]}>
+            <ActivityIndicator size="small" color={indicatorColor} style={styles.statusIndicator} />
+            <Text style={[styles.statusText, { color: textColor }]}>
               {mqttStatus}
             </Text>
           </View>
@@ -368,17 +391,17 @@ export default function DeviceConnectScreen() {
 
         {/* Device MAC Address */}
         {deviceMac && provisionStatus === "success" && (
-          <View style={styles.infoBox}>
-            <Text style={styles.infoLabel}>设备 MAC 地址:</Text>
-            <Text style={styles.infoValue}>{deviceMac}</Text>
+          <View style={[styles.infoBox, { backgroundColor: infoBoxBgColor }]}>
+            <Text style={[styles.infoLabel, { color: infoLabelColor }]}>设备 MAC 地址:</Text>
+            <Text style={[styles.infoValue, { color: infoValueColor }]}>{deviceMac}</Text>
           </View>
         )}
 
         {/* Device Info */}
         {deviceInfo && provisionStatus === "success" && (
-          <View style={styles.infoBox}>
-            <Text style={styles.infoLabel}>设备信息:</Text>
-            <Text style={styles.infoValue}>
+          <View style={[styles.infoBox, { backgroundColor: infoBoxBgColor }]}>
+            <Text style={[styles.infoLabel, { color: infoLabelColor }]}>设备信息:</Text>
+            <Text style={[styles.infoValue, { color: infoValueColor }]}>
               {JSON.stringify(deviceInfo, null, 2)}
             </Text>
           </View>
@@ -386,13 +409,13 @@ export default function DeviceConnectScreen() {
 
         {/* Heartbeat Data */}
         {heartbeatData && provisionStatus === "success" && (
-          <View style={styles.heartbeatContainer}>
-            <Text style={styles.heartbeatTitle}>设备运行状态</Text>
+          <View style={[styles.heartbeatContainer, { backgroundColor: heartbeatBgColor }]}>
+            <Text style={[styles.heartbeatTitle, { color: textColor }]}>设备运行状态</Text>
             
             {/* 基本信息 */}
-            <View style={styles.heartbeatRow}>
-              <Text style={styles.heartbeatLabel}>设备状态:</Text>
-              <Text style={styles.heartbeatValue}>
+            <View style={[styles.heartbeatRow, { borderBottomColor: heartbeatBorderColor }]}>
+              <Text style={[styles.heartbeatLabel, { color: heartbeatLabelColor }]}>设备状态:</Text>
+              <Text style={[styles.heartbeatValue, { color: heartbeatValueColor }]}>
                 {heartbeatData.state === DeviceState.STANDBY ? "待机" :
                  heartbeatData.state === DeviceState.RUNNING ? "运行中" :
                  heartbeatData.state === DeviceState.UPDATING ? "升级中" : "未知"}
@@ -400,33 +423,33 @@ export default function DeviceConnectScreen() {
             </View>
 
             {heartbeatData.fwver && (
-              <View style={styles.heartbeatRow}>
-                <Text style={styles.heartbeatLabel}>固件版本:</Text>
-                <Text style={styles.heartbeatValue}>{heartbeatData.fwver}</Text>
+              <View style={[styles.heartbeatRow, { borderBottomColor: heartbeatBorderColor }]}>
+                <Text style={[styles.heartbeatLabel, { color: heartbeatLabelColor }]}>固件版本:</Text>
+                <Text style={[styles.heartbeatValue, { color: heartbeatValueColor }]}>{heartbeatData.fwver}</Text>
               </View>
             )}
 
             {/* 播放状态 */}
-            <View style={styles.heartbeatRow}>
-              <Text style={styles.heartbeatLabel}>播放状态:</Text>
-              <Text style={styles.heartbeatValue}>
+            <View style={[styles.heartbeatRow, { borderBottomColor: heartbeatBorderColor }]}>
+              <Text style={[styles.heartbeatLabel, { color: heartbeatLabelColor }]}>播放状态:</Text>
+              <Text style={[styles.heartbeatValue, { color: heartbeatValueColor }]}>
                 {heartbeatData.play === 1 ? "播放中" : "已停止"}
               </Text>
             </View>
 
             {/* 灯光状态 */}
-            <View style={styles.heartbeatRow}>
-              <Text style={styles.heartbeatLabel}>灯光:</Text>
-              <Text style={styles.heartbeatValue}>
+            <View style={[styles.heartbeatRow, { borderBottomColor: heartbeatBorderColor }]}>
+              <Text style={[styles.heartbeatLabel, { color: heartbeatLabelColor }]}>灯光:</Text>
+              <Text style={[styles.heartbeatValue, { color: heartbeatValueColor }]}>
                 {heartbeatData.light === 1 ? "开启" : "关闭"}
               </Text>
             </View>
 
             {/* LED 亮度 */}
             {heartbeatData.led_bright !== undefined && (
-              <View style={styles.heartbeatRow}>
-                <Text style={styles.heartbeatLabel}>LED 亮度:</Text>
-                <Text style={styles.heartbeatValue}>
+              <View style={[styles.heartbeatRow, { borderBottomColor: heartbeatBorderColor }]}>
+                <Text style={[styles.heartbeatLabel, { color: heartbeatLabelColor }]}>LED 亮度:</Text>
+                <Text style={[styles.heartbeatValue, { color: heartbeatValueColor }]}>
                   {heartbeatData.led_bright}/255
                 </Text>
               </View>
@@ -434,8 +457,8 @@ export default function DeviceConnectScreen() {
 
             {/* LED 颜色 */}
             {heartbeatData.colors && heartbeatData.colors.length > 0 && (
-              <View style={styles.heartbeatRow}>
-                <Text style={styles.heartbeatLabel}>LED 颜色:</Text>
+              <View style={[styles.heartbeatRow, { borderBottomColor: heartbeatBorderColor }]}>
+                <Text style={[styles.heartbeatLabel, { color: heartbeatLabelColor }]}>LED 颜色:</Text>
                 <View style={styles.colorContainer}>
                   {heartbeatData.colors.map((color: LEDColor, index: number) => (
                     <View
@@ -455,35 +478,35 @@ export default function DeviceConnectScreen() {
 
             {/* 进度信息 */}
             {heartbeatData.pct !== undefined && (
-              <View style={styles.heartbeatRow}>
-                <Text style={styles.heartbeatLabel}>播放进度:</Text>
-                <Text style={styles.heartbeatValue}>
+              <View style={[styles.heartbeatRow, { borderBottomColor: heartbeatBorderColor }]}>
+                <Text style={[styles.heartbeatLabel, { color: heartbeatLabelColor }]}>播放进度:</Text>
+                <Text style={[styles.heartbeatValue, { color: heartbeatValueColor }]}>
                   {heartbeatData.pct.toFixed(1)}%
                 </Text>
               </View>
             )}
 
             {heartbeatData.idx !== undefined && (
-              <View style={styles.heartbeatRow}>
-                <Text style={styles.heartbeatLabel}>当前行索引:</Text>
-                <Text style={styles.heartbeatValue}>{heartbeatData.idx}</Text>
+              <View style={[styles.heartbeatRow, { borderBottomColor: heartbeatBorderColor }]}>
+                <Text style={[styles.heartbeatLabel, { color: heartbeatLabelColor }]}>当前行索引:</Text>
+                <Text style={[styles.heartbeatValue, { color: heartbeatValueColor }]}>{heartbeatData.idx}</Text>
               </View>
             )}
 
             {/* 角度和半径 */}
             {heartbeatData.t !== undefined && (
-              <View style={styles.heartbeatRow}>
-                <Text style={styles.heartbeatLabel}>角度 (Theta):</Text>
-                <Text style={styles.heartbeatValue}>
+              <View style={[styles.heartbeatRow, { borderBottomColor: heartbeatBorderColor }]}>
+                <Text style={[styles.heartbeatLabel, { color: heartbeatLabelColor }]}>角度 (Theta):</Text>
+                <Text style={[styles.heartbeatValue, { color: heartbeatValueColor }]}>
                   {heartbeatData.t.toFixed(2)} rad
                 </Text>
               </View>
             )}
 
             {heartbeatData.r !== undefined && (
-              <View style={styles.heartbeatRow}>
-                <Text style={styles.heartbeatLabel}>半径 (Rho):</Text>
-                <Text style={styles.heartbeatValue}>
+              <View style={[styles.heartbeatRow, { borderBottomColor: heartbeatBorderColor }]}>
+                <Text style={[styles.heartbeatLabel, { color: heartbeatLabelColor }]}>半径 (Rho):</Text>
+                <Text style={[styles.heartbeatValue, { color: heartbeatValueColor }]}>
                   {heartbeatData.r.toFixed(2)}
                 </Text>
               </View>
@@ -491,18 +514,18 @@ export default function DeviceConnectScreen() {
 
             {/* 速度设置 */}
             {heartbeatData.led_sp !== undefined && (
-              <View style={styles.heartbeatRow}>
-                <Text style={styles.heartbeatLabel}>LED 速度:</Text>
-                <Text style={styles.heartbeatValue}>
+              <View style={[styles.heartbeatRow, { borderBottomColor: heartbeatBorderColor }]}>
+                <Text style={[styles.heartbeatLabel, { color: heartbeatLabelColor }]}>LED 速度:</Text>
+                <Text style={[styles.heartbeatValue, { color: heartbeatValueColor }]}>
                   {heartbeatData.led_sp}/255
                 </Text>
               </View>
             )}
 
             {heartbeatData.ball_sp !== undefined && (
-              <View style={styles.heartbeatRow}>
-                <Text style={styles.heartbeatLabel}>钢珠速度:</Text>
-                <Text style={styles.heartbeatValue}>
+              <View style={[styles.heartbeatRow, { borderBottomColor: heartbeatBorderColor }]}>
+                <Text style={[styles.heartbeatLabel, { color: heartbeatLabelColor }]}>钢珠速度:</Text>
+                <Text style={[styles.heartbeatValue, { color: heartbeatValueColor }]}>
                   {heartbeatData.ball_sp}/255
                 </Text>
               </View>
@@ -510,22 +533,22 @@ export default function DeviceConnectScreen() {
 
             {/* 图案和音频 */}
             {heartbeatData.pattern_id !== null && heartbeatData.pattern_id !== undefined && (
-              <View style={styles.heartbeatRow}>
-                <Text style={styles.heartbeatLabel}>图案 ID:</Text>
-                <Text style={styles.heartbeatValue}>{heartbeatData.pattern_id}</Text>
+              <View style={[styles.heartbeatRow, { borderBottomColor: heartbeatBorderColor }]}>
+                <Text style={[styles.heartbeatLabel, { color: heartbeatLabelColor }]}>图案 ID:</Text>
+                <Text style={[styles.heartbeatValue, { color: heartbeatValueColor }]}>{heartbeatData.pattern_id}</Text>
               </View>
             )}
 
             {heartbeatData.sound_id !== undefined && (
-              <View style={styles.heartbeatRow}>
-                <Text style={styles.heartbeatLabel}>音频 ID:</Text>
-                <Text style={styles.heartbeatValue}>{heartbeatData.sound_id}</Text>
+              <View style={[styles.heartbeatRow, { borderBottomColor: heartbeatBorderColor }]}>
+                <Text style={[styles.heartbeatLabel, { color: heartbeatLabelColor }]}>音频 ID:</Text>
+                <Text style={[styles.heartbeatValue, { color: heartbeatValueColor }]}>{heartbeatData.sound_id}</Text>
               </View>
             )}
 
             {/* 错误码 */}
             {heartbeatData.err !== undefined && heartbeatData.err !== 0 && (
-              <View style={styles.heartbeatRow}>
+              <View style={[styles.heartbeatRow, { borderBottomColor: heartbeatBorderColor }]}>
                 <Text style={[styles.heartbeatLabel, styles.errorText]}>错误码:</Text>
                 <Text style={[styles.heartbeatValue, styles.errorText]}>
                   {heartbeatData.err}
@@ -535,9 +558,9 @@ export default function DeviceConnectScreen() {
 
             {/* 最后心跳时间 */}
             {lastHeartbeat && (
-              <View style={styles.heartbeatRow}>
-                <Text style={styles.heartbeatLabel}>最后心跳:</Text>
-                <Text style={styles.heartbeatValue}>
+              <View style={[styles.heartbeatRow, { borderBottomColor: heartbeatBorderColor }]}>
+                <Text style={[styles.heartbeatLabel, { color: heartbeatLabelColor }]}>最后心跳:</Text>
+                <Text style={[styles.heartbeatValue, { color: heartbeatValueColor }]}>
                   {lastHeartbeat.toLocaleTimeString()}
                 </Text>
               </View>
@@ -558,7 +581,7 @@ export default function DeviceConnectScreen() {
           )}
         </TouchableOpacity>
 
-        <Text style={styles.note}>
+        <Text style={[styles.note, { color: noteColor }]}>
           注意：请确保设备处于配对模式，并且手机的蓝牙已开启。
         </Text>
       </View>
@@ -569,7 +592,6 @@ export default function DeviceConnectScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F5F5F0",
   },
   contentContainer: {
     flexGrow: 1,
@@ -582,35 +604,29 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: "bold",
-    color: "#000",
     marginBottom: 10,
   },
   subtitle: {
     fontSize: 14,
-    color: "#666",
     marginBottom: 30,
     lineHeight: 20,
   },
   deviceInfo: {
-    backgroundColor: "#E8E8E8",
     borderRadius: 8,
     padding: 16,
     marginBottom: 30,
   },
   deviceInfoText: {
     fontSize: 16,
-    color: "#000",
     fontWeight: "500",
   },
   label: {
     fontSize: 14,
-    color: "#000",
     fontWeight: "500",
     marginBottom: 8,
     marginTop: 10,
   },
   input: {
-    backgroundColor: "#FFF",
     borderRadius: 8,
     paddingHorizontal: 16,
     paddingVertical: 14,
@@ -625,7 +641,6 @@ const styles = StyleSheet.create({
   passwordContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FFF",
     borderRadius: 8,
     marginBottom: 16,
     shadowColor: "#000",
@@ -662,7 +677,6 @@ const styles = StyleSheet.create({
   },
   note: {
     fontSize: 12,
-    color: "#999",
     textAlign: "center",
     marginTop: 10,
     lineHeight: 18,
@@ -670,7 +684,6 @@ const styles = StyleSheet.create({
   statusContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FFF",
     borderRadius: 8,
     padding: 16,
     marginTop: 20,
@@ -687,7 +700,6 @@ const styles = StyleSheet.create({
   statusText: {
     flex: 1,
     fontSize: 14,
-    color: "#000",
   },
   statusTextSuccess: {
     color: "#4CAF50",
@@ -698,7 +710,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   infoBox: {
-    backgroundColor: "#FFF",
     borderRadius: 8,
     padding: 16,
     marginTop: 10,
@@ -711,17 +722,14 @@ const styles = StyleSheet.create({
   },
   infoLabel: {
     fontSize: 12,
-    color: "#666",
     marginBottom: 4,
     fontWeight: "500",
   },
   infoValue: {
     fontSize: 14,
-    color: "#000",
     fontFamily: "monospace",
   },
   heartbeatContainer: {
-    backgroundColor: "#FFF",
     borderRadius: 8,
     padding: 16,
     marginTop: 10,
@@ -735,7 +743,6 @@ const styles = StyleSheet.create({
   heartbeatTitle: {
     fontSize: 16,
     fontWeight: "bold",
-    color: "#000",
     marginBottom: 12,
   },
   heartbeatRow: {
@@ -744,16 +751,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 6,
     borderBottomWidth: 1,
-    borderBottomColor: "#F0F0F0",
   },
   heartbeatLabel: {
     fontSize: 14,
-    color: "#666",
     flex: 1,
   },
   heartbeatValue: {
     fontSize: 14,
-    color: "#000",
     fontWeight: "500",
     flex: 1,
     textAlign: "right",

@@ -231,6 +231,9 @@ export default function ForgotPasswordScreen() {
                 <Ionicons name={showNewPassword ? "eye-off" : "eye"} size={20} color={iconColor} />
               </TouchableOpacity>
             </View>
+            <Text style={[styles.passwordHint, { color: placeholderColor }]}>
+              {t("passwordMustBeAtLeast6Characters")}
+            </Text>
 
             <View style={[styles.passwordContainer, { backgroundColor: inputBgColor }]}>
               <TextInput
@@ -317,6 +320,11 @@ const styles = StyleSheet.create({
   },
   eyeIcon: {
     padding: 14,
+  },
+  passwordHint: {
+    fontSize: 12,
+    marginBottom: 8,
+    marginTop: -4,
   },
   button: {
     backgroundColor: "#2C2C2C",

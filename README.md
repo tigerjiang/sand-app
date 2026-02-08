@@ -1,6 +1,6 @@
 # MeditativeSand App
 
-这是一个基于 Expo 的移动应用，用于控制和管理 Oasis 设备。支持蓝牙配网、MQTT 通信和设备远程控制。
+这是一个基于 Expo 的移动应用，用于控制和管理 Meditative 设备。支持蓝牙配网、MQTT 通信和设备远程控制。
 
 ## 功能特性
 
@@ -15,7 +15,7 @@
 
 ### 设备管理
 
-1. **设备扫描** - 通过蓝牙扫描附近的 Oasis 设备（以 "OM" 开头）
+1. **设备扫描** - 通过蓝牙扫描附近的 Meditative 设备（以 "OM" 开头）
 2. **蓝牙配网** - 通过蓝牙配置设备的 WiFi 连接
    - 自动发现蓝牙服务和特征
    - 发送 WiFi SSID 和密码
@@ -170,7 +170,7 @@ import { bleManager } from "../utils/bleManager";
 // 开始扫描
 bleManager.startScanning((device) => {
   if (device.name && device.name.startsWith("OM")) {
-    // 找到 Oasis 设备
+    // 找到 Meditative 设备
     console.log("发现设备:", device.name, device.id);
   }
 }, "OM");
@@ -530,8 +530,8 @@ $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "cmake;3.31.6"
 {
   "ios": {
     "infoPlist": {
-      "NSBluetoothAlwaysUsageDescription": "This app needs Bluetooth to connect to your Oasis devices.",
-      "NSBluetoothPeripheralUsageDescription": "This app needs Bluetooth to connect to your Oasis devices."
+      "NSBluetoothAlwaysUsageDescription": "This app needs Bluetooth to connect to your Meditative devices.",
+      "NSBluetoothPeripheralUsageDescription": "This app needs Bluetooth to connect to your Meditative devices."
     }
   }
 }

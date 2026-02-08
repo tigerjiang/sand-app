@@ -126,7 +126,7 @@ export default function DeviceSetupScreen() {
 
       {/* Main Content */}
       <ScrollView style={styles.mainContent} contentContainerStyle={styles.contentContainer}>
-        <Text style={[styles.title, { color: textColor }]}>Welcome to Oasis Control</Text>
+        <Text style={[styles.title, { color: textColor }]}>Welcome to Meditative Control</Text>
         <Text style={[styles.subtitle, { color: subtitleColor }]}>
           We'll guide you through your device setup...
         </Text>
@@ -160,10 +160,10 @@ export default function DeviceSetupScreen() {
         {!isScanning && devices.length === 0 && (
           <View style={styles.infoContainer}>
             <Text style={[styles.infoText, { color: subtitleColor }]}>
-              点击"ADD NEW DEVICE"按钮开始扫描附近的 Oasis 设备
+              点击"ADD NEW DEVICE"按钮开始扫描附近的 Meditative 设备
             </Text>
             <Text style={[styles.infoText, { color: subtitleColor }]}>
-              Your Oasis Device requires an internet connection to control the device and add patterns
+              Your Meditative Device requires an internet connection to control the device and add patterns
             </Text>
           </View>
         )}

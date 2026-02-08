@@ -13,10 +13,35 @@ import {
   View,
 } from "react-native";
 import { useI18n } from "../contexts/I18nContext";
+import { useTheme } from "../contexts/ThemeContext";
 
 export default function ProfileScreen() {
   const router = useRouter();
   const { t } = useI18n();
+  const { isDark } = useTheme();
+
+  // 深色模式颜色
+  const colors = {
+    containerBg: isDark ? "#121212" : "#F5F5F0",
+    title: isDark ? "#FFFFFF" : "#000",
+    subtitle: isDark ? "#B3B3B3" : "#666",
+    profilePictureBg: isDark ? "#2C2C2E" : "#E8E8E8",
+    profilePlaceholder: isDark ? "#8E8E93" : "#999",
+    editIconBg: isDark ? "#2C2C2E" : "#FFF",
+    editIconBorder: isDark ? "#3A3A3C" : "#E8E8E8",
+    editIconColor: isDark ? "#FFFFFF" : "#2C2C2C",
+    inputBg: isDark ? "#1C1C1E" : "#FFF",
+    inputColor: isDark ? "#FFFFFF" : "#000",
+    placeholder: isDark ? "#8E8E93" : "#999",
+    eyeIconColor: isDark ? "#FFFFFF" : "#000",
+    checkboxBorder: isDark ? "#FFFFFF" : "#2C2C2C",
+    checkboxCheck: isDark ? "#FFFFFF" : "#2C2C2C",
+    termsText: isDark ? "#FFFFFF" : "#000",
+    termsLink: isDark ? "#64B5F6" : "#4A90E2",
+    submitButtonBg: isDark ? "#2C2C2C" : "#2C2C2C",
+    submitButtonText: isDark ? "#FFF" : "#FFF",
+    shadowColor: isDark ? "#000" : "#000",
+  };
   const [name, setName] = useState("");
   const [nickname, setNickname] = useState("");
   const [email, setEmail] = useState("");
@@ -28,7 +53,31 @@ export default function ProfileScreen() {
   const [profileImage, setProfileImage] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
 
+  // 验证邮箱格式
+  const isValidEmail = (emailStr: string) =>
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailStr);
+
   const handleSubmit = () => {
+    if (!email.trim()) {
+      Alert.alert(t("error"), t("pleaseEnterEmail"));
+      return;
+    }
+    if (!isValidEmail(email)) {
+      Alert.alert(t("error"), t("invalidEmailFormat"));
+      return;
+    }
+    if (password.length < 6) {
+      Alert.alert(t("error"), t("passwordMustBeAtLeast6Characters"));
+      return;
+    }
+    if (password !== repeatPassword) {
+      Alert.alert(t("error"), t("passwordsDoNotMatch"));
+      return;
+    }
+    if (!agreeToTerms) {
+      Alert.alert(t("error"), t("agreeTo") + " " + t("termsOfService") + " " + t("and") + " " + t("privacyPolicy"));
+      return;
+    }
     // 这里添加注册逻辑
     router.push("/congratulations");
   };
@@ -177,17 +226,26 @@ export default function ProfileScreen() {
 
   return (
     <ScrollView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.containerBg }]}
       contentContainerStyle={styles.contentContainer}
     >
       {/* Main Content */}
       <View style={styles.mainContent}>
-        <Text style={styles.title}>{t("fillYourProfile")}</Text>
-        <Text style={styles.subtitle}>{t("dontWorry")}</Text>
+        <Text style={[styles.title, { color: colors.title }]}>
+          {t("fillYourProfile")}
+        </Text>
+        <Text style={[styles.subtitle, { color: colors.subtitle }]}>
+          {t("dontWorry")}
+        </Text>
 
         {/* Profile Picture */}
         <View style={styles.profilePictureContainer}>
-          <View style={styles.profilePicture}>
+          <View
+            style={[
+              styles.profilePicture,
+              { backgroundColor: colors.profilePictureBg },
+            ]}
+          >
             {profileImage ? (
               <Image
                 source={{ uri: profileImage }}
@@ -195,45 +253,77 @@ export default function ProfileScreen() {
                 contentFit="cover"
               />
             ) : (
-              <Ionicons name="person" size={60} color="#999" />
+              <Ionicons
+                name="person"
+                size={60}
+                color={colors.profilePlaceholder}
+              />
             )}
           </View>
           <TouchableOpacity
-            style={styles.editIcon}
+            style={[
+              styles.editIcon,
+              {
+                backgroundColor: colors.editIconBg,
+                borderColor: colors.editIconBorder,
+              },
+            ]}
             onPress={showImagePickerOptions}
             disabled={uploading}
           >
             {uploading ? (
-              <Ionicons name="hourglass" size={16} color="#2C2C2C" />
+              <Ionicons
+                name="hourglass"
+                size={16}
+                color={colors.editIconColor}
+              />
             ) : (
-              <Ionicons name="pencil" size={16} color="#2C2C2C" />
+              <Ionicons name="pencil" size={16} color={colors.editIconColor} />
             )}
           </TouchableOpacity>
         </View>
 
         {/* Name Input */}
         <TextInput
-          style={styles.input}
+          style={[
+            styles.input,
+            {
+              backgroundColor: colors.inputBg,
+              color: colors.inputColor,
+            },
+          ]}
           placeholder={t("name")}
-          placeholderTextColor="#999"
+          placeholderTextColor={colors.placeholder}
           value={name}
           onChangeText={setName}
         />
 
         {/* Nickname Input */}
         <TextInput
-          style={styles.input}
+          style={[
+            styles.input,
+            {
+              backgroundColor: colors.inputBg,
+              color: colors.inputColor,
+            },
+          ]}
           placeholder={t("nickname")}
-          placeholderTextColor="#999"
+          placeholderTextColor={colors.placeholder}
           value={nickname}
           onChangeText={setNickname}
         />
 
         {/* Email Input */}
         <TextInput
-          style={styles.input}
+          style={[
+            styles.input,
+            {
+              backgroundColor: colors.inputBg,
+              color: colors.inputColor,
+            },
+          ]}
           placeholder={t("email")}
-          placeholderTextColor="#999"
+          placeholderTextColor={colors.placeholder}
           value={email}
           onChangeText={setEmail}
           keyboardType="email-address"
@@ -241,11 +331,16 @@ export default function ProfileScreen() {
         />
 
         {/* Password Input */}
-        <View style={styles.passwordContainer}>
+        <View
+          style={[
+            styles.passwordContainer,
+            { backgroundColor: colors.inputBg },
+          ]}
+        >
           <TextInput
-            style={styles.passwordInput}
+            style={[styles.passwordInput, { color: colors.inputColor }]}
             placeholder={t("createPassword")}
-            placeholderTextColor="#999"
+            placeholderTextColor={colors.placeholder}
             value={password}
             onChangeText={setPassword}
             secureTextEntry={!showPassword}
@@ -257,17 +352,25 @@ export default function ProfileScreen() {
             <Ionicons
               name={showPassword ? "eye-off" : "eye"}
               size={20}
-              color="#000"
+              color={colors.eyeIconColor}
             />
           </TouchableOpacity>
         </View>
+        <Text style={[styles.passwordHint, { color: colors.subtitle }]}>
+          {t("passwordMustBeAtLeast6Characters")}
+        </Text>
 
         {/* Repeat Password Input */}
-        <View style={styles.passwordContainer}>
+        <View
+          style={[
+            styles.passwordContainer,
+            { backgroundColor: colors.inputBg },
+          ]}
+        >
           <TextInput
-            style={styles.passwordInput}
+            style={[styles.passwordInput, { color: colors.inputColor }]}
             placeholder={t("repeatPassword")}
-            placeholderTextColor="#999"
+            placeholderTextColor={colors.placeholder}
             value={repeatPassword}
             onChangeText={setRepeatPassword}
             secureTextEntry={!showRepeatPassword}
@@ -279,7 +382,7 @@ export default function ProfileScreen() {
             <Ionicons
               name={showRepeatPassword ? "eye-off" : "eye"}
               size={20}
-              color="#000"
+              color={colors.eyeIconColor}
             />
           </TouchableOpacity>
         </View>
@@ -287,28 +390,51 @@ export default function ProfileScreen() {
         {/* Terms Checkbox */}
         <View style={styles.termsContainer}>
           <TouchableOpacity
-            style={styles.checkbox}
+            style={[styles.checkbox, { borderColor: colors.checkboxBorder }]}
             onPress={() => setAgreeToTerms(!agreeToTerms)}
           >
             {agreeToTerms && (
-              <Ionicons name="checkmark" size={16} color="#2C2C2C" />
+              <Ionicons
+                name="checkmark"
+                size={16}
+                color={colors.checkboxCheck}
+              />
             )}
           </TouchableOpacity>
-          <Text style={styles.termsText}>
+          <Text style={[styles.termsText, { color: colors.termsText }]}>
             {t("agreeTo")}{" "}
-            <Text style={styles.termsLink} onPress={handleTermsPress}>
+            <Text
+              style={[styles.termsLink, { color: colors.termsLink }]}
+              onPress={handleTermsPress}
+            >
               {t("termsOfService")}
             </Text>{" "}
             {t("and")}{" "}
-            <Text style={styles.termsLink} onPress={handlePrivacyPress}>
+            <Text
+              style={[styles.termsLink, { color: colors.termsLink }]}
+              onPress={handlePrivacyPress}
+            >
               {t("privacyPolicy")}
             </Text>
           </Text>
         </View>
 
         {/* Submit Button */}
-        <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
-          <Text style={styles.submitButtonText}>SUBMIT</Text>
+        <TouchableOpacity
+          style={[
+            styles.submitButton,
+            { backgroundColor: colors.submitButtonBg },
+          ]}
+          onPress={handleSubmit}
+        >
+          <Text
+            style={[
+              styles.submitButtonText,
+              { color: colors.submitButtonText },
+            ]}
+          >
+            SUBMIT
+          </Text>
         </TouchableOpacity>
       </View>
     </ScrollView>
@@ -405,6 +531,11 @@ const styles = StyleSheet.create({
   eyeIcon: {
     padding: 14,
   },
+  passwordHint: {
+    fontSize: 12,
+    marginBottom: 8,
+    marginTop: -4,
+  },
   termsContainer: {
     flexDirection: "row",
     alignItems: "center",
@@ -429,14 +560,12 @@ const styles = StyleSheet.create({
     color: "#4A90E2",
   },
   submitButton: {
-    backgroundColor: "#2C2C2C",
     borderRadius: 8,
     paddingVertical: 16,
     alignItems: "center",
     marginTop: 10,
   },
   submitButtonText: {
-    color: "#FFF",
     fontSize: 16,
     fontWeight: "600",
     letterSpacing: 1,

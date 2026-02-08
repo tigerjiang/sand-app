@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { useI18n } from "../contexts/I18nContext";
 import { useTheme } from "../contexts/ThemeContext";
 
@@ -17,9 +17,16 @@ export default function ChangePasswordScreen() {
   const [showRepeatPassword, setShowRepeatPassword] = useState(false);
 
   const handleSubmit = () => {
-    // 处理修改密码
+    if (!currentPassword.trim()) {
+      Alert.alert(t("error"), t("pleaseEnterCurrentPassword"));
+      return;
+    }
+    if (newPassword.length < 6) {
+      Alert.alert(t("error"), t("passwordMustBeAtLeast6Characters"));
+      return;
+    }
     if (newPassword !== repeatPassword) {
-      alert("New passwords do not match");
+      Alert.alert(t("error"), t("passwordsDoNotMatch"));
       return;
     }
     // 这里添加修改密码的逻辑
@@ -79,6 +86,9 @@ export default function ChangePasswordScreen() {
             <Ionicons name={showNewPassword ? "eye-off" : "eye"} size={20} color={iconColor} />
           </TouchableOpacity>
         </View>
+        <Text style={[styles.passwordHint, { color: placeholderColor }]}>
+          {t("passwordMustBeAtLeast6Characters")}
+        </Text>
 
         {/* Repeat Password Input */}
         <View style={[styles.passwordContainer, { backgroundColor: inputBgColor }]}>
@@ -152,6 +162,11 @@ const styles = StyleSheet.create({
   },
   eyeIcon: {
     padding: 14,
+  },
+  passwordHint: {
+    fontSize: 12,
+    marginBottom: 8,
+    marginTop: -4,
   },
   forgotPassword: {
     marginBottom: 30,

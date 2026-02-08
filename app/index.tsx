@@ -33,7 +33,9 @@ export default function OnboardingScreen() {
     <View style={[styles.container, { backgroundColor }]}>
       {/* 抽象图形区域 */}
       <View style={styles.graphicContainer}>
-        <View style={[styles.swirlPattern, { backgroundColor: swirlBgColor }]} />
+        <View
+          style={[styles.swirlPattern, { backgroundColor: swirlBgColor }]}
+        />
         <View style={[styles.glowBorder, { borderColor: borderColor }]}>
           <View style={[styles.glowDot, styles.blueGlow]} />
           <View style={[styles.glowDot, styles.purpleGlow]} />
@@ -41,17 +43,23 @@ export default function OnboardingScreen() {
       </View>
 
       {/* 标题 */}
-      <Text style={[styles.title, { color: textColor }]}>Oasis Control</Text>
+      <Text style={[styles.title, { color: textColor }]}>Meditative Sand</Text>
 
       {/* 开始按钮 */}
-      <TouchableOpacity style={styles.getStartedButton} onPress={handleGetStarted}>
+      <TouchableOpacity
+        style={styles.getStartedButton}
+        onPress={handleGetStarted}
+      >
         <Text style={styles.getStartedText}>GET STARTED</Text>
       </TouchableOpacity>
 
       {/* 登录链接 */}
       <TouchableOpacity onPress={handleLogin} style={styles.loginLink}>
         <Text style={[styles.loginText, { color: textColor }]}>
-          Already have an account? <Text style={[styles.loginLinkText, { color: linkColor }]}>Log In</Text>
+          Already have an account?{" "}
+          <Text style={[styles.loginLinkText, { color: linkColor }]}>
+            Log In
+          </Text>
         </Text>
       </TouchableOpacity>
     </View>

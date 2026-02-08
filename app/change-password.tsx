@@ -1,8 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { useI18n } from "../contexts/I18nContext";
+import { ApiError, changePassword } from "../utils/api";
 
 export default function ChangePasswordScreen() {
   const router = useRouter();
@@ -14,14 +15,19 @@ export default function ChangePasswordScreen() {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showRepeatPassword, setShowRepeatPassword] = useState(false);
 
-  const handleSubmit = () => {
-    // 处理修改密码
+  const handleSubmit = async () => {
     if (newPassword !== repeatPassword) {
-      alert("New passwords do not match");
+      Alert.alert(t("error"), "两次输入的新密码不一致");
       return;
     }
-    // 这里添加修改密码的逻辑
-    router.back();
+    try {
+      await changePassword({ currentPassword, newPassword });
+      Alert.alert(t("success"), "密码修改成功");
+      router.back();
+    } catch (e: any) {
+      const msg = e instanceof ApiError ? e.message : (e?.message || "修改密码失败");
+      Alert.alert(t("error"), msg);
+    }
   };
 
   const handleForgotPassword = () => {

@@ -15,7 +15,7 @@ export default function DeviceSetupScreen() {
   const [devices, setDevices] = useState<DeviceInfo[]>([]);
   const [isScanning, setIsScanning] = useState(false);
   const [bluetoothEnabled, setBluetoothEnabled] = useState(false);
-  const scanTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const scanTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // 检查蓝牙状态
   useEffect(() => {
@@ -89,6 +89,20 @@ export default function DeviceSetupScreen() {
     });
   };
 
+  // 测试阶段：没有真实蓝牙设备时使用虚拟设备走通流程
+  const handleUseVirtualDevice = () => {
+    if (isScanning) {
+      stopScanning();
+    }
+
+    const virtualDevice: DeviceInfo = {
+      id: `virtual-${Date.now()}`,
+      name: "Oasis Virtual Device",
+    };
+
+    handleConnect(virtualDevice);
+  };
+
   const handleAddNewDevice = () => {
     if (!bluetoothEnabled) {
       Alert.alert("错误", "请先开启蓝牙功能");
@@ -117,7 +131,7 @@ export default function DeviceSetupScreen() {
       <ScrollView style={styles.mainContent} contentContainerStyle={styles.contentContainer}>
         <Text style={styles.title}>Welcome to Oasis Control</Text>
         <Text style={styles.subtitle}>
-          We'll guide you through your device setup...
+          We will guide you through your device setup...
         </Text>
 
         {isScanning && (
@@ -149,7 +163,7 @@ export default function DeviceSetupScreen() {
         {!isScanning && devices.length === 0 && (
           <View style={styles.infoContainer}>
             <Text style={styles.infoText}>
-              点击"ADD NEW DEVICE"按钮开始扫描附近的 Oasis 设备
+              点击“ADD NEW DEVICE”按钮开始扫描附近的 Oasis 设备
             </Text>
             <Text style={styles.infoText}>
               Your Oasis Device requires an internet connection to control the device and add patterns
@@ -160,6 +174,12 @@ export default function DeviceSetupScreen() {
 
       {/* Add New Device Button */}
       <View style={styles.footer}>
+        <TouchableOpacity
+          style={styles.virtualButton}
+          onPress={handleUseVirtualDevice}
+        >
+          <Text style={styles.virtualButtonText}>使用虚拟设备（测试）</Text>
+        </TouchableOpacity>
         <TouchableOpacity
           style={[styles.addButton, (!bluetoothEnabled || isScanning) && styles.addButtonDisabled]}
           onPress={handleAddNewDevice}
@@ -291,6 +311,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 40,
     paddingTop: 20,
+  },
+  virtualButton: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 8,
+    paddingVertical: 14,
+    alignItems: "center",
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "#2C2C2C",
+  },
+  virtualButtonText: {
+    color: "#2C2C2C",
+    fontSize: 14,
+    fontWeight: "600",
+    letterSpacing: 0.5,
   },
   addButton: {
     backgroundColor: "#2C2C2C",

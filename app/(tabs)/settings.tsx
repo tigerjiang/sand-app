@@ -1,23 +1,68 @@
 import { Ionicons } from "@expo/vector-icons";
 import Slider from "@react-native-community/slider";
 import { useRouter } from "expo-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Alert, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
 import DeviceHeader from "../../components/DeviceHeader";
+import { useDevice } from "../../contexts/DeviceContext";
 import { useI18n } from "../../contexts/I18nContext";
 import { useTheme } from "../../contexts/ThemeContext";
+import {
+  DeviceState,
+  extractMacFromDeviceName,
+  type HeartbeatData,
+  type DeviceInfo as MqttDeviceInfo,
+  subscribeDeviceTopics,
+} from "../../utils/deviceManager";
+import { mqttManager } from "../../utils/mqttManager";
+import {
+  resetCommand,
+  restartCommand,
+  reverseDrawCommand,
+  setBallSpeedCommand,
+} from "../../utils/deviceCommand";
+import { logout } from "../../utils/api";
+
+function clamp(n: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, n));
+}
+
+function percentToByte(percent: number) {
+  return Math.round((clamp(percent, 0, 100) / 100) * 255);
+}
+
+function byteToPercent(byte: number) {
+  return Math.round((clamp(byte, 0, 255) / 255) * 100);
+}
 
 // Tabs 下的 Settings 页面 - 已登录状态
 export default function SettingsTab() {
   const router = useRouter();
   const { isDark, themeMode, setThemeMode } = useTheme();
   const { t } = useI18n();
+  const { currentDevice } = useDevice();
   
   const [reverseDrawMode, setReverseDrawMode] = useState(false);
   const [drawingSpeed, setDrawingSpeed] = useState(82);
   const [showSpeedIndicator, setShowSpeedIndicator] = useState(false);
   const hideIndicatorTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const speedDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const deviceMac = useMemo(() => {
+    if (!currentDevice) return "";
+    const fromName = extractMacFromDeviceName(currentDevice.name);
+    if (fromName) return fromName;
+    return extractMacFromDeviceName(currentDevice.id) || currentDevice.id || "";
+  }, [currentDevice]);
+
+  const [mqttStatus, setMqttStatus] = useState<
+    "disconnected" | "connecting" | "connected" | "error"
+  >(mqttManager.getConnected() ? "connected" : "disconnected");
+  const [mqttError, setMqttError] = useState<string | null>(null);
+  const [heartbeat, setHeartbeat] = useState<HeartbeatData | null>(null);
+  const [lastHeartbeatAt, setLastHeartbeatAt] = useState<number | null>(null);
+  const [reportedDeviceInfo, setReportedDeviceInfo] = useState<MqttDeviceInfo | null>(null);
 
   // 组件卸载时清理定时器
   useEffect(() => {
@@ -25,8 +70,79 @@ export default function SettingsTab() {
       if (hideIndicatorTimeout.current) {
         clearTimeout(hideIndicatorTimeout.current);
       }
+      if (speedDebounceRef.current) {
+        clearTimeout(speedDebounceRef.current);
+      }
     };
   }, []);
+
+  const canSendCommand = () => {
+    if (!currentDevice) {
+      Alert.alert(t("error"), "未选择设备，请先完成设备配网/绑定。");
+      return false;
+    }
+    if (!deviceMac) {
+      Alert.alert(t("error"), "无法获取设备 MAC（请检查设备名称/ID）。");
+      return false;
+    }
+    if (!mqttManager.getConnected()) {
+      Alert.alert(t("error"), "MQTT 未连接，请先在设备配网页完成连接。");
+      return false;
+    }
+    return true;
+  };
+
+  // 订阅设备 MQTT 上报（用于同步开关/滑杆的真实状态）
+  useEffect(() => {
+    if (!currentDevice || !deviceMac) {
+      setHeartbeat(null);
+      setLastHeartbeatAt(null);
+      setReportedDeviceInfo(null);
+      setMqttStatus(mqttManager.getConnected() ? "connected" : "disconnected");
+      return;
+    }
+
+    const heartbeatTopic = `heartbeat/${deviceMac}`;
+    const deviceInfoTopic = `devicelinfo/${deviceMac}`;
+
+    setMqttStatus(mqttManager.getConnected() ? "connected" : "connecting");
+    setMqttError(null);
+
+    mqttManager
+      .connect({ topics: [heartbeatTopic, deviceInfoTopic] })
+      .catch((err: any) => {
+        setMqttStatus("error");
+        setMqttError(err?.message || "MQTT 连接失败");
+      });
+
+    const statusUnsub = mqttManager.onStatus((status, err) => {
+      if (status === "connected") {
+        setMqttStatus("connected");
+        setMqttError(null);
+      } else if (status === "disconnected") {
+        setMqttStatus("disconnected");
+      } else if (status === "error") {
+        setMqttStatus("error");
+        setMqttError(err?.message || "MQTT 错误");
+      }
+    });
+
+    const unsubs = subscribeDeviceTopics(
+      deviceMac,
+      (hb) => {
+        setHeartbeat(hb);
+        setLastHeartbeatAt(Date.now());
+        if (hb.reverse_draw !== undefined) setReverseDrawMode(hb.reverse_draw === 1);
+        if (hb.ball_sp !== undefined) setDrawingSpeed(byteToPercent(hb.ball_sp));
+      },
+      (info) => setReportedDeviceInfo(info)
+    );
+
+    return () => {
+      statusUnsub();
+      unsubs.forEach((u) => u());
+    };
+  }, [currentDevice, deviceMac]);
   
   const handleDarkModeChange = (value: boolean) => {
     setThemeMode(value ? "dark" : "light");
@@ -41,7 +157,10 @@ export default function SettingsTab() {
   };
 
   const handleLogout = () => {
-    router.replace("/");
+    // 可选：通知后端失效 token，然后清理本地 token
+    logout().finally(() => {
+      router.replace("/");
+    });
   };
 
   const handleLanguage = () => {
@@ -70,8 +189,10 @@ export default function SettingsTab() {
         {
           text: t("confirm"),
           onPress: () => {
-            // 执行重启逻辑
-            console.log("Restarting device...");
+            if (!canSendCommand()) return;
+            restartCommand(deviceMac).catch((err: any) => {
+              Alert.alert(t("error"), err?.message || "发送重启指令失败");
+            });
           },
           style: "destructive",
         },
@@ -91,8 +212,10 @@ export default function SettingsTab() {
         {
           text: t("confirm"),
           onPress: () => {
-            // 执行恢复出厂设置逻辑
-            console.log("Factory resetting device...");
+            if (!canSendCommand()) return;
+            resetCommand(deviceMac).catch((err: any) => {
+              Alert.alert(t("error"), err?.message || "发送恢复出厂设置指令失败");
+            });
           },
           style: "destructive",
         },
@@ -164,12 +287,79 @@ export default function SettingsTab() {
         </View>
         <View style={[styles.divider, { backgroundColor: dividerColor }]} />
 
+        {/* MQTT/设备上报状态（简版） */}
+        <View style={[styles.deviceStatusCard, { backgroundColor: sliderBgColor, borderColor: dividerColor }]}>
+          <View style={styles.deviceStatusRow}>
+            <Text style={[styles.deviceStatusLabel, { color: versionTextColor }]}>设备</Text>
+            <Text style={[styles.deviceStatusValue, { color: textColor }]} numberOfLines={1}>
+              {currentDevice?.name || "未选择"}
+            </Text>
+          </View>
+          <View style={styles.deviceStatusRow}>
+            <Text style={[styles.deviceStatusLabel, { color: versionTextColor }]}>MAC</Text>
+            <Text style={[styles.deviceStatusValue, { color: textColor }]} numberOfLines={1}>
+              {deviceMac || "-"}
+            </Text>
+          </View>
+          <View style={styles.deviceStatusRow}>
+            <Text style={[styles.deviceStatusLabel, { color: versionTextColor }]}>MQTT</Text>
+            <Text style={[styles.deviceStatusValue, { color: textColor }]} numberOfLines={1}>
+              {mqttStatus === "connected"
+                ? "已连接"
+                : mqttStatus === "connecting"
+                  ? "连接中…"
+                  : mqttStatus === "error"
+                    ? `错误：${mqttError || "未知"}`
+                    : "未连接"}
+            </Text>
+          </View>
+          <View style={styles.deviceStatusRow}>
+            <Text style={[styles.deviceStatusLabel, { color: versionTextColor }]}>最后心跳</Text>
+            <Text style={[styles.deviceStatusValue, { color: textColor }]}>
+              {lastHeartbeatAt ? `${Math.round((Date.now() - lastHeartbeatAt) / 1000)}s 前` : "-"}
+            </Text>
+          </View>
+          {heartbeat?.fwver && (
+            <View style={styles.deviceStatusRow}>
+              <Text style={[styles.deviceStatusLabel, { color: versionTextColor }]}>固件</Text>
+              <Text style={[styles.deviceStatusValue, { color: textColor }]}>{heartbeat.fwver}</Text>
+            </View>
+          )}
+          {heartbeat?.state !== undefined && (
+            <View style={styles.deviceStatusRow}>
+              <Text style={[styles.deviceStatusLabel, { color: versionTextColor }]}>状态</Text>
+              <Text style={[styles.deviceStatusValue, { color: textColor }]}>
+                {heartbeat.state === DeviceState.STANDBY
+                  ? "待机"
+                  : heartbeat.state === DeviceState.RUNNING
+                    ? "运行中"
+                    : heartbeat.state === DeviceState.UPDATING
+                      ? "升级中"
+                      : "未知"}
+              </Text>
+            </View>
+          )}
+          {reportedDeviceInfo && (
+            <Text style={[styles.deviceStatusHint, { color: versionTextColor }]} numberOfLines={2}>
+              上报信息：{JSON.stringify(reportedDeviceInfo)}
+            </Text>
+          )}
+        </View>
+        <View style={[styles.divider, { backgroundColor: dividerColor }]} />
+
         {/* Reverse Draw Mode */}
         <View style={styles.settingItem}>
           <Text style={[styles.settingLabel, { color: textColor }]}>{t("reverseDrawMode")}</Text>
           <Switch
             value={reverseDrawMode}
-            onValueChange={setReverseDrawMode}
+            onValueChange={(next) => {
+              setReverseDrawMode(next);
+              if (!canSendCommand()) return;
+              reverseDrawCommand(deviceMac, next ? 1 : 0).catch((err: any) => {
+                setReverseDrawMode(!next);
+                Alert.alert(t("error"), err?.message || "发送反向绘制指令失败");
+              });
+            }}
             trackColor={{ false: isDark ? "#3A3A3C" : "#E0E0E0", true: isDark ? "#0A84FF" : "#2C2C2C" }}
             thumbColor="#FFF"
           />
@@ -196,6 +386,15 @@ export default function SettingsTab() {
                   if (hideIndicatorTimeout.current) {
                     clearTimeout(hideIndicatorTimeout.current);
                   }
+
+                  // 防抖下发（协议 ball_sp: 0-255）
+                  if (!canSendCommand()) return;
+                  if (speedDebounceRef.current) clearTimeout(speedDebounceRef.current);
+                  speedDebounceRef.current = setTimeout(() => {
+                    setBallSpeedCommand(deviceMac, percentToByte(value)).catch((err: any) => {
+                      Alert.alert(t("error"), err?.message || "发送速度指令失败");
+                    });
+                  }, 150);
                 }}
                 onSlidingStart={() => {
                   setShowSpeedIndicator(true);
@@ -474,5 +673,32 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 12,
     fontWeight: "600",
+  },
+  deviceStatusCard: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginVertical: 12,
+  },
+  deviceStatusRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: 12,
+    marginBottom: 6,
+  },
+  deviceStatusLabel: {
+    width: 72,
+    fontSize: 12,
+  },
+  deviceStatusValue: {
+    flex: 1,
+    textAlign: "right",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  deviceStatusHint: {
+    marginTop: 6,
+    fontSize: 10,
   },
 });

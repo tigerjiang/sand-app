@@ -2,8 +2,9 @@ import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import Slider from "@react-native-community/slider";
 import { LinearGradient } from "expo-linear-gradient";
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  Alert,
   Modal,
   Platform,
   ScrollView,
@@ -15,8 +16,30 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Path } from "react-native-svg";
 import DeviceHeader from "../../components/DeviceHeader";
+import { useDevice } from "../../contexts/DeviceContext";
 import { useI18n } from "../../contexts/I18nContext";
 import { useTheme } from "../../contexts/ThemeContext";
+import {
+  extractMacFromDeviceName,
+  DeviceState,
+  type HeartbeatData,
+  type DeviceInfo as MqttDeviceInfo,
+  subscribeDeviceTopics,
+} from "../../utils/deviceManager";
+import { mqttManager } from "../../utils/mqttManager";
+import {
+  convertColorsToCommandFormat,
+  localPlayCommand,
+  playCommand,
+  powerCommand,
+  lightCommand,
+  setBallSpeedCommand,
+  setGapTimeCommand,
+  setLedBrightCommand,
+  setLedColorCommand,
+  setSleepTimeCommand,
+  soundCommand,
+} from "../../utils/deviceCommand";
 import ColorPickerScreen from "../color-picker";
 import WhiteNoisePickerScreen from "../white-noise-picker";
 
@@ -70,12 +93,181 @@ const svgPaths: Record<string, string> = {
   "05_lotus_mandala_complex.svg": "M500 300 C560 260 640 300 660 360 C620 380 580 420 500 460 C420 420 380 380 340 360 C360 300 440 260 500 300 C580 360 580 540 500 620 C420 540 420 360 500 300",
 };
 
+function clamp(n: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, n));
+}
+
+function percentToByte(percent: number) {
+  return Math.round((clamp(percent, 0, 100) / 100) * 255);
+}
+
+function byteToPercent(byte: number) {
+  return Math.round((clamp(byte, 0, 255) / 255) * 100);
+}
+
+function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
+  const normalized = hex.replace("#", "").trim();
+  const full =
+    normalized.length === 3
+      ? normalized
+          .split("")
+          .map((c) => c + c)
+          .join("")
+      : normalized;
+  if (!/^[0-9a-fA-F]{6}$/.test(full)) return null;
+  const r = parseInt(full.slice(0, 2), 16);
+  const g = parseInt(full.slice(2, 4), 16);
+  const b = parseInt(full.slice(4, 6), 16);
+  return { r, g, b };
+}
+
+function formatHHmm(date: Date) {
+  const h = date.getHours();
+  const m = String(date.getMinutes()).padStart(2, "0");
+  // 协议示例是 "9:45"（小时不强制补零）
+  return `${h}:${m}`;
+}
+
+function parseMinutesToToday(minutes: number): Date {
+  const d = new Date();
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  d.setHours(h, m, 0, 0);
+  return d;
+}
+
+function stableSoundIdFromName(name: string): number {
+  // 简单稳定 hash → 1..255（避免 0）
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
+  return (hash % 255) + 1;
+}
+
 export default function DeviceTab() {
   const insets = useSafeAreaInsets();
   const { isDark } = useTheme();
   const { t } = useI18n();
+  const { currentDevice } = useDevice();
+
+  const deviceMac = useMemo(() => {
+    if (!currentDevice) return "";
+    // 优先从名称中提取（形如 OM + mac / 或直接 mac）
+    const fromName = extractMacFromDeviceName(currentDevice.name);
+    if (fromName) return fromName;
+    // 兜底：如果 id 本身就是 mac（或你在测试阶段用 virtual-xxx）
+    return extractMacFromDeviceName(currentDevice.id) || currentDevice.id || "";
+  }, [currentDevice]);
+
+  const [mqttStatus, setMqttStatus] = useState<
+    "disconnected" | "connecting" | "connected" | "error"
+  >(mqttManager.getConnected() ? "connected" : "disconnected");
+  const [mqttError, setMqttError] = useState<string | null>(null);
+  const [heartbeat, setHeartbeat] = useState<HeartbeatData | null>(null);
+  const [lastHeartbeatAt, setLastHeartbeatAt] = useState<number | null>(null);
+  const [reportedDeviceInfo, setReportedDeviceInfo] = useState<MqttDeviceInfo | null>(null);
+
+  const brightnessDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const volumeDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const canSendCommand = () => {
+    if (!currentDevice) {
+      Alert.alert(t("error"), "未选择设备，请先完成设备配网/绑定。");
+      return false;
+    }
+    if (!deviceMac) {
+      Alert.alert(t("error"), "无法获取设备 MAC（请检查设备名称/ID）。");
+      return false;
+    }
+    if (!mqttManager.getConnected()) {
+      Alert.alert(t("error"), "MQTT 未连接，请先在设备配网页完成连接。");
+      return false;
+    }
+    return true;
+  };
+
+  // 订阅设备 MQTT 上报（心跳/设备信息）
+  useEffect(() => {
+    if (!currentDevice || !deviceMac) {
+      setHeartbeat(null);
+      setLastHeartbeatAt(null);
+      setReportedDeviceInfo(null);
+      setMqttStatus(mqttManager.getConnected() ? "connected" : "disconnected");
+      return;
+    }
+
+    const heartbeatTopic = `heartbeat/${deviceMac}`;
+    const deviceInfoTopic = `devicelinfo/${deviceMac}`;
+
+    setMqttStatus(mqttManager.getConnected() ? "connected" : "connecting");
+    setMqttError(null);
+
+    // 确保连接，并在连接成功后自动订阅 topics
+    mqttManager
+      .connect({ topics: [heartbeatTopic, deviceInfoTopic] })
+      .catch((err: any) => {
+        setMqttStatus("error");
+        setMqttError(err?.message || "MQTT 连接失败");
+      });
+
+    const statusUnsub = mqttManager.onStatus((status, err) => {
+      if (status === "connected") {
+        setMqttStatus("connected");
+        setMqttError(null);
+      } else if (status === "disconnected") {
+        setMqttStatus("disconnected");
+      } else if (status === "error") {
+        setMqttStatus("error");
+        setMqttError(err?.message || "MQTT 错误");
+      }
+    });
+
+    const unsubs = subscribeDeviceTopics(
+      deviceMac,
+      (hb) => {
+        setHeartbeat(hb);
+        setLastHeartbeatAt(Date.now());
+
+        // 用设备上报同步 UI（避免“UI 与设备实际状态脱节”）
+        if (hb.play !== undefined) setIsPlaying(hb.play === 1);
+        if (hb.state !== undefined) {
+          setPowerOn(
+            hb.state === DeviceState.RUNNING ||
+              hb.state === DeviceState.STANDBY ||
+              hb.state === DeviceState.UPDATING
+          );
+        }
+        if (hb.light !== undefined) setLedOn(hb.light === 1);
+        if (hb.led_bright !== undefined) setBrightness(byteToPercent(hb.led_bright));
+        if (hb.ball_sp !== undefined) setVolume(byteToPercent(hb.ball_sp));
+        if (hb.gap_time !== undefined) {
+          setIntervalPauseMinutes(hb.gap_time);
+          setIntervalPause(hb.gap_time > 0);
+        }
+        if (hb.sleep_on != null) setSleepStartTime(parseMinutesToToday(hb.sleep_on));
+        if (hb.sleep_off != null) setSleepEndTime(parseMinutesToToday(hb.sleep_off));
+        if (hb.sound_id !== undefined) {
+          setMusicEnabled(hb.sound_id > 0);
+          if (hb.sound_id > 0) setSoundId(hb.sound_id);
+        }
+        if (hb.sound_type !== undefined) {
+          const st = hb.sound_type as 1 | 2 | 3;
+          if (st === 1 || st === 2 || st === 3) setSoundType(st);
+        }
+      },
+      (info) => {
+        setReportedDeviceInfo(info);
+      }
+    );
+
+    return () => {
+      statusUnsub();
+      unsubs.forEach((u) => u());
+    };
+  }, [currentDevice, deviceMac, t]);
 
   const [isPlaying, setIsPlaying] = useState(false);
+  const [powerOn, setPowerOn] = useState(true);
+  const [ledOn, setLedOn] = useState(true);
   const [intervalPause, setIntervalPause] = useState(false);
   const [intervalPauseMinutes, setIntervalPauseMinutes] = useState(0);
   const [intervalPauseModalVisible, setIntervalPauseModalVisible] = useState(false);
@@ -96,6 +288,10 @@ export default function DeviceTab() {
   const [colorPickerVisible, setColorPickerVisible] = useState(false);
   const [volume, setVolume] = useState(50);
   const [musicEnabled, setMusicEnabled] = useState(true);
+  // 白噪音：当前选择（WhiteNoisePicker 目前只返回 musicName，这里做稳定映射）
+  const [soundId, setSoundId] = useState<number>(1);
+  // 1-单曲循环，2-列表循环，3-随机播放（UI 暂未传出，先默认列表循环）
+  const [soundType, setSoundType] = useState<1 | 2 | 3>(2);
   const [whiteNoisePickerVisible, setWhiteNoisePickerVisible] = useState(false);
 
   const backgroundColor = isDark ? "#000000" : "#F5F5F0";
@@ -108,21 +304,49 @@ export default function DeviceTab() {
   const sliderBgColor = isDark ? "#1C1C1E" : "#FFFFFF";
   const inactiveTextColor = isDark ? "#999" : "#999";
 
+  const playPatternAtIndex = async (index: number) => {
+    const item = playlist[index];
+    setCurrentIndex(index);
+    setIsPlaying(true);
+
+    if (!canSendCommand()) return;
+
+    try {
+      // 优先使用 thrFile 作为 SD 资源名；没有时用 title
+      await localPlayCommand(deviceMac, item.thrFile || item.title);
+      await playCommand(deviceMac, 1);
+    } catch (err: any) {
+      Alert.alert(t("error"), err?.message || "发送播放指令失败");
+    }
+  };
+
   const handlePrevious = () => {
-    setCurrentIndex((prev) => (prev > 0 ? prev - 1 : playlist.length - 1));
+    const nextIndex = currentIndex > 0 ? currentIndex - 1 : playlist.length - 1;
+    void playPatternAtIndex(nextIndex);
   };
 
   const handleNext = () => {
-    setCurrentIndex((prev) => (prev < playlist.length - 1 ? prev + 1 : 0));
+    const nextIndex = currentIndex < playlist.length - 1 ? currentIndex + 1 : 0;
+    void playPatternAtIndex(nextIndex);
   };
 
-  const handlePlayPause = () => {
-    setIsPlaying(!isPlaying);
+  const handlePlayPause = async () => {
+    const next = !isPlaying;
+    setIsPlaying(next);
+
+    if (!canSendCommand()) return;
+
+    try {
+      await playCommand(deviceMac, next ? 1 : 0);
+    } catch (err: any) {
+      // 失败则回滚 UI
+      setIsPlaying(!next);
+      Alert.alert(t("error"), err?.message || "发送播放控制失败");
+    }
   };
 
   const handlePlaylistItem = (index: number) => {
-    setCurrentIndex(index);
-    setIsPlaying(true);
+    void playPatternAtIndex(index);
   };
 
   const currentItem = playlist[currentIndex];
@@ -130,6 +354,42 @@ export default function DeviceTab() {
   return (
     <View style={[styles.container, { backgroundColor }]}>
       <DeviceHeader
+        powered={powerOn}
+        ledEnabled={ledOn}
+        whiteNoiseEnabled={musicEnabled}
+        onPowerPress={async (next?: boolean) => {
+          const resolvedNext = typeof next === "boolean" ? next : !powerOn;
+          setPowerOn(resolvedNext);
+          if (!canSendCommand()) return;
+          try {
+            await powerCommand(deviceMac, resolvedNext ? 1 : 0);
+          } catch (err: any) {
+            setPowerOn(!resolvedNext);
+            Alert.alert(t("error"), err?.message || "发送开关机指令失败");
+          }
+        }}
+        onLedPress={async (next?: boolean) => {
+          const resolvedNext = typeof next === "boolean" ? next : !ledOn;
+          setLedOn(resolvedNext);
+          if (!canSendCommand()) return;
+          try {
+            await lightCommand(deviceMac, resolvedNext ? 1 : 0);
+          } catch (err: any) {
+            setLedOn(!resolvedNext);
+            Alert.alert(t("error"), err?.message || "发送灯光指令失败");
+          }
+        }}
+        onWhiteNoisePress={async (next?: boolean) => {
+          const resolvedNext = typeof next === "boolean" ? next : !musicEnabled;
+          setMusicEnabled(resolvedNext);
+          if (!canSendCommand()) return;
+          try {
+            await soundCommand(deviceMac, { sound_id: resolvedNext ? soundId : 0, sound_type: soundType });
+          } catch (err: any) {
+            setMusicEnabled(!resolvedNext);
+            Alert.alert(t("error"), err?.message || "发送白噪音指令失败");
+          }
+        }}
       />
       <ScrollView
         style={styles.scrollView}
@@ -138,6 +398,75 @@ export default function DeviceTab() {
           { paddingBottom: insets.bottom + 20 },
         ]}
       >
+        {/* MQTT/设备上报状态 */}
+        <View style={[styles.statusCard, { backgroundColor: sliderBgColor, borderColor }]}>
+          <View style={styles.statusRow}>
+            <Text style={[styles.statusLabel, { color: inactiveTextColor }]}>设备</Text>
+            <Text style={[styles.statusValue, { color: textColor }]} numberOfLines={1}>
+              {currentDevice?.name || "未选择"}
+            </Text>
+          </View>
+          <View style={styles.statusRow}>
+            <Text style={[styles.statusLabel, { color: inactiveTextColor }]}>MAC</Text>
+            <Text style={[styles.statusValue, { color: textColor }]} numberOfLines={1}>
+              {deviceMac || "-"}
+            </Text>
+          </View>
+          <View style={styles.statusRow}>
+            <Text style={[styles.statusLabel, { color: inactiveTextColor }]}>MQTT</Text>
+            <Text style={[styles.statusValue, { color: textColor }]} numberOfLines={1}>
+              {mqttStatus === "connected"
+                ? "已连接"
+                : mqttStatus === "connecting"
+                  ? "连接中…"
+                  : mqttStatus === "error"
+                    ? `错误：${mqttError || "未知"}`
+                    : "未连接"}
+            </Text>
+          </View>
+          <View style={styles.statusRow}>
+            <Text style={[styles.statusLabel, { color: inactiveTextColor }]}>最后心跳</Text>
+            <Text style={[styles.statusValue, { color: textColor }]}>
+              {lastHeartbeatAt ? `${Math.round((Date.now() - lastHeartbeatAt) / 1000)}s 前` : "-"}
+            </Text>
+          </View>
+
+          {heartbeat && (
+            <>
+              <View style={styles.statusRow}>
+                <Text style={[styles.statusLabel, { color: inactiveTextColor }]}>状态</Text>
+                <Text style={[styles.statusValue, { color: textColor }]}>
+                  {heartbeat.state === DeviceState.STANDBY
+                    ? "待机"
+                    : heartbeat.state === DeviceState.RUNNING
+                      ? "运行中"
+                      : heartbeat.state === DeviceState.UPDATING
+                        ? "升级中"
+                        : "未知"}
+                </Text>
+              </View>
+              {heartbeat.fwver && (
+                <View style={styles.statusRow}>
+                  <Text style={[styles.statusLabel, { color: inactiveTextColor }]}>固件</Text>
+                  <Text style={[styles.statusValue, { color: textColor }]}>{heartbeat.fwver}</Text>
+                </View>
+              )}
+              {heartbeat.pct !== undefined && (
+                <View style={styles.statusRow}>
+                  <Text style={[styles.statusLabel, { color: inactiveTextColor }]}>进度</Text>
+                  <Text style={[styles.statusValue, { color: textColor }]}>{heartbeat.pct.toFixed(1)}%</Text>
+                </View>
+              )}
+            </>
+          )}
+
+          {reportedDeviceInfo && (
+            <Text style={[styles.statusHint, { color: inactiveTextColor }]} numberOfLines={2}>
+              上报信息：{JSON.stringify(reportedDeviceInfo)}
+            </Text>
+          )}
+        </View>
+
         {/* Pattern Display */}
       <View style={styles.patternContainer}>
         <View style={[styles.patternCircle, { borderColor }]}>
@@ -220,7 +549,16 @@ export default function DeviceTab() {
             minimumValue={0}
             maximumValue={100}
             value={brightness}
-            onValueChange={setBrightness}
+            onValueChange={(value) => {
+              setBrightness(value);
+              if (!canSendCommand()) return;
+              if (brightnessDebounceRef.current) clearTimeout(brightnessDebounceRef.current);
+              brightnessDebounceRef.current = setTimeout(() => {
+                setLedBrightCommand(deviceMac, percentToByte(value)).catch((err: any) => {
+                  Alert.alert(t("error"), err?.message || "发送亮度指令失败");
+                });
+              }, 150);
+            }}
             minimumTrackTintColor={sliderActiveColor}
             maximumTrackTintColor={sliderTrackColor}
             thumbTintColor={sliderActiveColor}
@@ -249,7 +587,15 @@ export default function DeviceTab() {
               { backgroundColor: sliderTrackColor },
               musicEnabled && styles.toggleActive,
             ]}
-            onPress={() => setMusicEnabled(!musicEnabled)}
+            onPress={() => {
+              const next = !musicEnabled;
+              setMusicEnabled(next);
+              if (!canSendCommand()) return;
+              soundCommand(deviceMac, { sound_id: next ? soundId : 0, sound_type: soundType }).catch((err: any) => {
+                setMusicEnabled(!next);
+                Alert.alert(t("error"), err?.message || "发送白噪音指令失败");
+              });
+            }}
           >
             <View
               style={[
@@ -265,16 +611,29 @@ export default function DeviceTab() {
             minimumValue={0}
             maximumValue={100}
             value={volume}
-            onValueChange={setVolume}
+            onValueChange={(value) => {
+              setVolume(value);
+              if (!musicEnabled) return;
+              if (!canSendCommand()) return;
+              if (volumeDebounceRef.current) clearTimeout(volumeDebounceRef.current);
+              volumeDebounceRef.current = setTimeout(() => {
+                // 协议里有 ball_sp（0-255），这里先用它承载“音量/速度”类滑杆
+                setBallSpeedCommand(deviceMac, percentToByte(value)).catch((err: any) => {
+                  Alert.alert(t("error"), err?.message || "发送音量/速度指令失败");
+                });
+              }, 150);
+            }}
             minimumTrackTintColor={sliderActiveColor}
             maximumTrackTintColor={sliderTrackColor}
             thumbTintColor={sliderActiveColor}
             disabled={!musicEnabled}
           />
           <TouchableOpacity
-            style={styles.musicButton}
-            onPress={() => setWhiteNoisePickerVisible(true)}
-            disabled={!musicEnabled}
+            style={[styles.musicButton, !musicEnabled && { opacity: 0.6 }]}
+            onPress={() => {
+              if (!musicEnabled) setMusicEnabled(true);
+              setWhiteNoisePickerVisible(true);
+            }}
           >
             <Ionicons
               name="musical-note"
@@ -323,29 +682,40 @@ export default function DeviceTab() {
           </TouchableOpacity>
         ))}
       </View>
+      </ScrollView>
 
-      {/* Color Picker Modal */}
+      {/* 注意：弹层必须放在 ScrollView 外，否则 Android 裁剪会导致不显示 */}
       <ColorPickerScreen
         visible={colorPickerVisible}
         onClose={() => setColorPickerVisible(false)}
         onColorSelect={(color) => {
           setSelectedColor(color);
-          // TODO: 发送颜色指令到蓝牙沙盘
-          // 例如: bluetoothService.sendColorCommand(color);
+          const rgb = hexToRgb(color);
+          if (!rgb) return;
+          setLedOn(true);
+          if (!canSendCommand()) return;
+          // 开灯 + 设置颜色（协议为 RGB 字符串数组）
+          lightCommand(deviceMac, 1).catch(() => {});
+          setLedColorCommand(deviceMac, convertColorsToCommandFormat([rgb])).catch((err: any) => {
+            Alert.alert(t("error"), err?.message || "发送颜色指令失败");
+          });
         }}
       />
 
-      {/* White Noise Picker Modal */}
       <WhiteNoisePickerScreen
         visible={whiteNoisePickerVisible}
         onClose={() => setWhiteNoisePickerVisible(false)}
         onMusicSelect={(musicName: string) => {
-          // 发送命令到 IOT 设备播放音乐
-          console.log("Play music:", musicName);
+          const nextSoundId = stableSoundIdFromName(musicName);
+          setSoundId(nextSoundId);
+          setMusicEnabled(true);
+          if (!canSendCommand()) return;
+          soundCommand(deviceMac, { sound_id: nextSoundId, sound_type: soundType }).catch((err: any) => {
+            Alert.alert(t("error"), err?.message || "发送白噪音指令失败");
+          });
         }}
       />
 
-      {/* Interval Pause Modal */}
       <Modal
         visible={intervalPauseModalVisible}
         transparent
@@ -355,9 +725,7 @@ export default function DeviceTab() {
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: sliderBgColor }]}>
             <Text style={[styles.modalTitle, { color: textColor }]}>{t("intervalPause")}</Text>
-            <Text style={[styles.modalValue, { color: textColor }]}>
-              {Math.round(tempIntervalMinutes)} min
-            </Text>
+            <Text style={[styles.modalValue, { color: textColor }]}>{Math.round(tempIntervalMinutes)} min</Text>
             <View style={styles.modalSliderContainer}>
               <Slider
                 style={styles.modalSlider}
@@ -385,9 +753,17 @@ export default function DeviceTab() {
               <TouchableOpacity
                 style={[styles.modalButton, styles.modalButtonConfirm, { backgroundColor: activeBgColor }]}
                 onPress={() => {
-                  setIntervalPauseMinutes(Math.round(tempIntervalMinutes));
-                  setIntervalPause(Math.round(tempIntervalMinutes) > 0);
+                  const minutes = Math.round(tempIntervalMinutes);
+                  setIntervalPauseMinutes(minutes);
+                  setIntervalPause(minutes > 0);
                   setIntervalPauseModalVisible(false);
+
+                  if (!canSendCommand()) return;
+                  if (minutes > 0) {
+                    setGapTimeCommand(deviceMac, minutes).catch((err: any) => {
+                      Alert.alert(t("error"), err?.message || "发送间隔时间指令失败");
+                    });
+                  }
                 }}
               >
                 <Text style={[styles.modalButtonText, { color: textColor }]}>{t("confirm")}</Text>
@@ -397,7 +773,6 @@ export default function DeviceTab() {
         </View>
       </Modal>
 
-      {/* Auto Sleep Modal */}
       <Modal
         visible={autoSleepModalVisible}
         transparent
@@ -407,7 +782,7 @@ export default function DeviceTab() {
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, styles.autoSleepModalContent, { backgroundColor: sliderBgColor }]}>
             <Text style={[styles.modalTitle, { color: textColor }]}>{t("autoSleep")}</Text>
-            
+
             {/* Sleep Start Time */}
             <View style={styles.timePickerSection}>
               <Text style={[styles.timePickerLabel, { color: textColor }]}>{t("sleepStartTime")}</Text>
@@ -423,7 +798,9 @@ export default function DeviceTab() {
               >
                 <Text style={[styles.timePickerValue, { color: textColor }]}>
                   {tempSleepStartTime
-                    ? `${String(tempSleepStartTime.getHours()).padStart(2, "0")}:${String(tempSleepStartTime.getMinutes()).padStart(2, "0")}`
+                    ? `${String(tempSleepStartTime.getHours()).padStart(2, "0")}:${String(
+                        tempSleepStartTime.getMinutes()
+                      ).padStart(2, "0")}`
                     : "--"}
                 </Text>
               </TouchableOpacity>
@@ -458,7 +835,9 @@ export default function DeviceTab() {
               >
                 <Text style={[styles.timePickerValue, { color: textColor }]}>
                   {tempSleepEndTime
-                    ? `${String(tempSleepEndTime.getHours()).padStart(2, "0")}:${String(tempSleepEndTime.getMinutes()).padStart(2, "0")}`
+                    ? `${String(tempSleepEndTime.getHours()).padStart(2, "0")}:${String(
+                        tempSleepEndTime.getMinutes()
+                      ).padStart(2, "0")}`
                     : "--"}
                 </Text>
               </TouchableOpacity>
@@ -492,6 +871,15 @@ export default function DeviceTab() {
                     setSleepStartTime(tempSleepStartTime);
                     setSleepEndTime(tempSleepEndTime);
                     setAutoSleep(true);
+
+                    if (canSendCommand()) {
+                      setSleepTimeCommand(deviceMac, {
+                        on: formatHHmm(tempSleepStartTime),
+                        off: formatHHmm(tempSleepEndTime),
+                      }).catch((err: any) => {
+                        Alert.alert(t("error"), err?.message || "发送睡眠时间指令失败");
+                      });
+                    }
                   }
                   setAutoSleepModalVisible(false);
                 }}
@@ -502,7 +890,6 @@ export default function DeviceTab() {
           </View>
         </View>
       </Modal>
-      </ScrollView>
     </View>
   );
 }
@@ -517,6 +904,33 @@ const styles = StyleSheet.create({
   contentContainer: {
     paddingHorizontal: 20,
     paddingTop: 20,
+  },
+  statusCard: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 16,
+  },
+  statusRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: 12,
+    marginBottom: 6,
+  },
+  statusLabel: {
+    width: 72,
+    fontSize: 12,
+  },
+  statusValue: {
+    flex: 1,
+    textAlign: "right",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  statusHint: {
+    marginTop: 6,
+    fontSize: 10,
   },
   patternContainer: {
     alignItems: "center",

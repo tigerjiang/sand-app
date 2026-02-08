@@ -7,13 +7,19 @@ import { useTheme } from "../contexts/ThemeContext";
 
 interface DeviceHeaderProps {
   deviceName?: string;
-  onPowerPress?: () => void;
-  onLedPress?: () => void;
-  onWhiteNoisePress?: () => void;
+  powered?: boolean;
+  ledEnabled?: boolean;
+  whiteNoiseEnabled?: boolean;
+  onPowerPress?: (next?: boolean) => void;
+  onLedPress?: (next?: boolean) => void;
+  onWhiteNoisePress?: (next?: boolean) => void;
 }
 
 export default function DeviceHeader({
   deviceName,
+  powered,
+  ledEnabled,
+  whiteNoiseEnabled,
   onPowerPress,
   onLedPress,
   onWhiteNoisePress,
@@ -23,29 +29,33 @@ export default function DeviceHeader({
   const insets = useSafeAreaInsets();
   const { isDark } = useTheme();
 
-  const [isPowered, setIsPowered] = useState(true);
-  const [ledEnabled, setLedEnabled] = useState(true);
-  const [whiteNoiseEnabled, setWhiteNoiseEnabled] = useState(false);
+  const [isPoweredState, setIsPoweredState] = useState(true);
+  const [ledEnabledState, setLedEnabledState] = useState(true);
+  const [whiteNoiseEnabledState, setWhiteNoiseEnabledState] = useState(false);
+
+  const isPowered = powered ?? isPoweredState;
+  const isLedEnabled = ledEnabled ?? ledEnabledState;
+  const isWhiteNoiseEnabled = whiteNoiseEnabled ?? whiteNoiseEnabledState;
 
   const iconColor = isDark ? "#FFFFFF" : "#000000";
   const textColor = isDark ? "#FFFFFF" : "#000000";
 
   const handlePowerPress = () => {
-    const newState = !isPowered;
-    setIsPowered(newState);
-    onPowerPress?.();
+    const next = !isPowered;
+    if (powered === undefined) setIsPoweredState(next);
+    onPowerPress?.(next);
   };
 
   const handleLedPress = () => {
-    const newState = !ledEnabled;
-    setLedEnabled(newState);
-    onLedPress?.();
+    const next = !isLedEnabled;
+    if (ledEnabled === undefined) setLedEnabledState(next);
+    onLedPress?.(next);
   };
 
   const handleWhiteNoisePress = () => {
-    const newState = !whiteNoiseEnabled;
-    setWhiteNoiseEnabled(newState);
-    onWhiteNoisePress?.();
+    const next = !isWhiteNoiseEnabled;
+    if (whiteNoiseEnabled === undefined) setWhiteNoiseEnabledState(next);
+    onWhiteNoisePress?.(next);
   };
 
   return (
@@ -94,8 +104,8 @@ export default function DeviceHeader({
           <Ionicons
             name="musical-note"
             size={20}
-            color={whiteNoiseEnabled ? iconColor : iconColor}
-            style={{ opacity: whiteNoiseEnabled ? 1 : 0.5 }}
+            color={isWhiteNoiseEnabled ? iconColor : iconColor}
+            style={{ opacity: isWhiteNoiseEnabled ? 1 : 0.5 }}
           />
         </TouchableOpacity>
 
@@ -108,8 +118,8 @@ export default function DeviceHeader({
           <Ionicons
             name="bulb"
             size={24}
-            color={ledEnabled ? iconColor : iconColor}
-            style={{ opacity: ledEnabled ? 1 : 0.5 }}
+            color={isLedEnabled ? iconColor : iconColor}
+            style={{ opacity: isLedEnabled ? 1 : 0.5 }}
           />
         </TouchableOpacity>
       </View>

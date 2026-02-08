@@ -1,8 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { useI18n } from "../contexts/I18nContext";
+import { ApiError, login } from "../utils/api";
+import { signInWithApple, signInWithFacebook, signInWithGoogle } from "../utils/auth/socialLogin";
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -11,9 +13,14 @@ export default function LoginScreen() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
-  const handleSignIn = () => {
-    // 这里添加登录逻辑
-    router.push("/(tabs)/device");
+  const handleSignIn = async () => {
+    try {
+      await login({ email, password });
+      router.replace("/(tabs)/device");
+    } catch (e: any) {
+      const msg = e instanceof ApiError ? e.message : (e?.message || "登录失败");
+      Alert.alert(t("error"), msg);
+    }
   };
 
   const handleForgotPassword = () => {
@@ -21,14 +28,34 @@ export default function LoginScreen() {
     console.log("Forgot password");
   };
 
-  const handleFacebookLogin = () => {
-    // 处理Facebook登录
-    console.log("Facebook login");
+  const handleFacebookLogin = async () => {
+    try {
+      await signInWithFacebook();
+      router.replace("/(tabs)/device");
+    } catch (e: any) {
+      const msg = e instanceof ApiError ? e.message : (e?.message || "Facebook 登录失败");
+      Alert.alert(t("error"), msg);
+    }
   };
 
-  const handleGoogleLogin = () => {
-    // 处理Google登录
-    console.log("Google login");
+  const handleGoogleLogin = async () => {
+    try {
+      await signInWithGoogle();
+      router.replace("/(tabs)/device");
+    } catch (e: any) {
+      const msg = e instanceof ApiError ? e.message : (e?.message || "Google 登录失败");
+      Alert.alert(t("error"), msg);
+    }
+  };
+
+  const handleAppleLogin = async () => {
+    try {
+      await signInWithApple();
+      router.replace("/(tabs)/device");
+    } catch (e: any) {
+      const msg = e instanceof ApiError ? e.message : (e?.message || "Apple 登录失败");
+      Alert.alert(t("error"), msg);
+    }
   };
 
   return (
@@ -88,6 +115,9 @@ export default function LoginScreen() {
           </TouchableOpacity>
           <TouchableOpacity style={styles.socialButton} onPress={handleGoogleLogin}>
             <Text style={styles.googleText}>G</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.socialButton} onPress={handleAppleLogin}>
+            <Ionicons name="logo-apple" size={24} color="#000" />
           </TouchableOpacity>
         </View>
       </View>

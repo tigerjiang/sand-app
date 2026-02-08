@@ -1,8 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { useI18n } from "../contexts/I18nContext";
+import { ApiError, register } from "../utils/api";
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -16,9 +17,26 @@ export default function ProfileScreen() {
   const [showRepeatPassword, setShowRepeatPassword] = useState(false);
   const [agreeToTerms, setAgreeToTerms] = useState(false);
 
-  const handleSubmit = () => {
-    // 这里添加注册逻辑
-    router.push("/congratulations");
+  const handleSubmit = async () => {
+    if (!agreeToTerms) {
+      Alert.alert(t("error"), "请先同意条款与隐私政策");
+      return;
+    }
+    if (!email || !password) {
+      Alert.alert(t("error"), "请输入邮箱和密码");
+      return;
+    }
+    if (password !== repeatPassword) {
+      Alert.alert(t("error"), "两次输入的密码不一致");
+      return;
+    }
+    try {
+      await register({ email, password, name, nickname });
+      router.replace("/congratulations");
+    } catch (e: any) {
+      const msg = e instanceof ApiError ? e.message : (e?.message || "注册失败");
+      Alert.alert(t("error"), msg);
+    }
   };
 
   const handleTermsPress = () => {

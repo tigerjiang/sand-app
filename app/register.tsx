@@ -1,21 +1,31 @@
 import { useRouter } from "expo-router";
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useI18n } from "../contexts/I18nContext";
+import { ApiError } from "../utils/api";
+import { signInWithFacebook, signInWithGoogle } from "../utils/auth/socialLogin";
 
 export default function RegisterScreen() {
   const router = useRouter();
   const { t } = useI18n();
 
-  const handleFacebookRegister = () => {
-    // 处理Facebook注册
-    console.log("Facebook register");
-    router.push("/(tabs)/device");
+  const handleFacebookRegister = async () => {
+    try {
+      await signInWithFacebook();
+      router.replace("/(tabs)/device");
+    } catch (e: any) {
+      const msg = e instanceof ApiError ? e.message : (e?.message || "Facebook 登录失败");
+      Alert.alert(t("error"), msg);
+    }
   };
 
-  const handleGoogleRegister = () => {
-    // 处理Google注册
-    console.log("Google register");
-    router.push("/(tabs)/device");
+  const handleGoogleRegister = async () => {
+    try {
+      await signInWithGoogle();
+      router.replace("/(tabs)/device");
+    } catch (e: any) {
+      const msg = e instanceof ApiError ? e.message : (e?.message || "Google 登录失败");
+      Alert.alert(t("error"), msg);
+    }
   };
 
   const handleEmailRegister = () => {

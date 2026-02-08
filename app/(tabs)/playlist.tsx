@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
+  Alert,
   FlatList,
   ScrollView,
   StyleSheet,
@@ -10,9 +11,19 @@ import {
 } from "react-native";
 import Svg, { Path } from "react-native-svg";
 import DeviceHeader from "../../components/DeviceHeader";
+import { useDevice } from "../../contexts/DeviceContext";
 import { useI18n } from "../../contexts/I18nContext";
 import { usePlaylist } from "../../contexts/PlaylistContext";
 import { useTheme } from "../../contexts/ThemeContext";
+import { extractMacFromDeviceName } from "../../utils/deviceManager";
+import {
+  localPlayCommand,
+  onlinePlayCommand,
+  playCommand,
+  soundCommand,
+  type OnlinePlayListItem,
+} from "../../utils/deviceCommand";
+import { mqttManager } from "../../utils/mqttManager";
 
 // 音乐列表
 const musicList = [
@@ -78,6 +89,16 @@ const generateMusicPlaylists = () => {
 
 const musicPlaylists = generateMusicPlaylists();
 
+// 在线 thr 文件的基础 URL（请替换为你们真实的文件服务器/OSS/CDN）
+const ONLINE_THR_BASE_URL = "http://xxx.com/";
+
+function stableSoundIdFromName(name: string): number {
+  // 简单稳定 hash → 1..255（避免 0）
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
+  return (hash % 255) + 1;
+}
+
 // SVG 路径数据
 const svgPaths: Record<string, string> = {
   "01_complex_mandala_rings.svg": "M500 160 C650 220 760 360 760 500 C760 640 650 780 500 840 C350 780 240 640 240 500 C240 360 350 220 500 160 C620 260 620 740 500 840 C380 740 380 260 500 160",
@@ -111,10 +132,70 @@ type TabType = "playlist" | "my-pattern" | "my-favorite";
 export default function PlaylistTab() {
   const { isDark } = useTheme();
   const { t } = useI18n();
+  const { currentDevice } = useDevice();
   const { myFavorite, myPattern } = usePlaylist();
   const [selectedMusicIndex, setSelectedMusicIndex] = useState(0);
   const [activeTab, setActiveTab] = useState<TabType>("playlist");
   const [currentPatternIndex, setCurrentPatternIndex] = useState(0);
+
+  const deviceMac = useMemo(() => {
+    if (!currentDevice) return "";
+    const fromName = extractMacFromDeviceName(currentDevice.name);
+    if (fromName) return fromName;
+    return extractMacFromDeviceName(currentDevice.id) || currentDevice.id || "";
+  }, [currentDevice]);
+
+  const canSendCommand = () => {
+    if (!currentDevice) {
+      Alert.alert(t("error"), "未选择设备，请先完成设备配网/绑定。");
+      return false;
+    }
+    if (!deviceMac) {
+      Alert.alert(t("error"), "无法获取设备 MAC（请检查设备名称/ID）。");
+      return false;
+    }
+    if (!mqttManager.getConnected()) {
+      Alert.alert(t("error"), "MQTT 未连接，请先在设备配网页完成连接。");
+      return false;
+    }
+    return true;
+  };
+
+  const getThrName = (svgFile: string) => svgFile.replace(/\.svg$/i, ".thr");
+
+  const buildOnlineUrl = (svgFile: string) => `${ONLINE_THR_BASE_URL}${getThrName(svgFile)}`;
+
+  const handlePlayOnline = async (patterns: { id: string; svgFile: string }[], index: number) => {
+    if (!canSendCommand()) return;
+    const selected = patterns[index];
+    if (!selected) return;
+
+    const list: OnlinePlayListItem[] = patterns.map((p) => ({ url: buildOnlineUrl(p.svgFile) }));
+    const url = buildOnlineUrl(selected.svgFile);
+    const pattern_id = Number.parseInt(selected.id, 10);
+
+    try {
+      await onlinePlayCommand(deviceMac, {
+        ...(Number.isFinite(pattern_id) ? { pattern_id } : {}),
+        url,
+        list,
+      });
+      // 一般在线播放下发后也需要触发播放
+      await playCommand(deviceMac, 1);
+    } catch (err: any) {
+      Alert.alert(t("error"), err?.message || "发送在线播放指令失败");
+    }
+  };
+
+  const handlePlayLocal = async (pattern: { svgFile: string }) => {
+    if (!canSendCommand()) return;
+    try {
+      await localPlayCommand(deviceMac, getThrName(pattern.svgFile));
+      await playCommand(deviceMac, 1);
+    } catch (err: any) {
+      Alert.alert(t("error"), err?.message || "发送本地播放指令失败");
+    }
+  };
 
   const backgroundColor = isDark ? "#000000" : "#F5F5F0";
   const textColor = isDark ? "#FFFFFF" : "#000000";
@@ -147,6 +228,21 @@ export default function PlaylistTab() {
   const handleMusicSelect = (index: number) => {
     setSelectedMusicIndex(index);
     setCurrentPatternIndex(0);
+
+    // 选中音乐时：同时下发 soundCommand + onlinePlayCommand（默认从第一个图案开始）
+    if (!canSendCommand()) return;
+
+    const playlist = musicPlaylists[index];
+    if (!playlist) return;
+
+    const nextSoundId = stableSoundIdFromName(playlist.musicName);
+    const soundType: 1 | 2 | 3 = 2; // 暂按“列表循环”
+
+    void soundCommand(deviceMac, { sound_id: nextSoundId, sound_type: soundType }).catch((err: any) => {
+      Alert.alert(t("error"), err?.message || "发送音频指令失败");
+    });
+
+    void handlePlayOnline(playlist.patterns, 0);
   };
 
   const handlePatternSelect = (index: number) => {
@@ -291,6 +387,12 @@ export default function PlaylistTab() {
                       if (activeTab === "playlist") {
                         const globalIndex = currentPatterns.findIndex((p) => p.id === pattern.id);
                         handlePatternSelect(globalIndex);
+                        void handlePlayOnline(currentPatterns, globalIndex);
+                      } else if (activeTab === "my-favorite") {
+                        const idx = myFavorite.findIndex((p) => p.id === pattern.id);
+                        void handlePlayOnline(myFavorite, idx);
+                      } else if (activeTab === "my-pattern") {
+                        void handlePlayLocal(pattern);
                       }
                     }}
                   >

@@ -2,11 +2,13 @@ import { useRouter } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { useTheme } from "../contexts/ThemeContext";
 
 SplashScreen.preventAutoHideAsync();
 
 export default function OnboardingScreen() {
   const router = useRouter();
+  const { isDark } = useTheme();
 
   useEffect(() => {
     // 隐藏启动画面
@@ -21,29 +23,43 @@ export default function OnboardingScreen() {
     router.push("/login");
   };
 
+  const backgroundColor = isDark ? "#000000" : "#F5F5F0";
+  const textColor = isDark ? "#FFFFFF" : "#333";
+  const linkColor = isDark ? "#0A84FF" : "#4A90E2";
+  const swirlBgColor = isDark ? "#2C2C2E" : "#E0E0E0";
+  const borderColor = isDark ? "#3A3A3C" : "#4A90E2";
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor }]}>
       {/* 抽象图形区域 */}
       <View style={styles.graphicContainer}>
-        <View style={styles.swirlPattern} />
-        <View style={styles.glowBorder}>
+        <View
+          style={[styles.swirlPattern, { backgroundColor: swirlBgColor }]}
+        />
+        <View style={[styles.glowBorder, { borderColor: borderColor }]}>
           <View style={[styles.glowDot, styles.blueGlow]} />
           <View style={[styles.glowDot, styles.purpleGlow]} />
         </View>
       </View>
 
       {/* 标题 */}
-      <Text style={styles.title}>Oasis Control</Text>
+      <Text style={[styles.title, { color: textColor }]}>Meditative Sand</Text>
 
       {/* 开始按钮 */}
-      <TouchableOpacity style={styles.getStartedButton} onPress={handleGetStarted}>
+      <TouchableOpacity
+        style={styles.getStartedButton}
+        onPress={handleGetStarted}
+      >
         <Text style={styles.getStartedText}>GET STARTED</Text>
       </TouchableOpacity>
 
       {/* 登录链接 */}
       <TouchableOpacity onPress={handleLogin} style={styles.loginLink}>
-        <Text style={styles.loginText}>
-          Already have an account? <Text style={styles.loginLinkText}>Log In</Text>
+        <Text style={[styles.loginText, { color: textColor }]}>
+          Already have an account?{" "}
+          <Text style={[styles.loginLinkText, { color: linkColor }]}>
+            Log In
+          </Text>
         </Text>
       </TouchableOpacity>
     </View>
@@ -53,7 +69,6 @@ export default function OnboardingScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F5F5F0",
     justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: 20,
@@ -70,7 +85,6 @@ const styles = StyleSheet.create({
     width: 250,
     height: 200,
     borderRadius: 125,
-    backgroundColor: "#E0E0E0",
     opacity: 0.3,
     transform: [{ rotate: "45deg" }],
   },
@@ -81,7 +95,6 @@ const styles = StyleSheet.create({
     borderRadius: 140,
     borderWidth: 2,
     borderStyle: "dashed",
-    borderColor: "#4A90E2",
   },
   glowDot: {
     position: "absolute",
@@ -110,7 +123,6 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 36,
     fontWeight: "300",
-    color: "#333",
     marginBottom: 40,
     letterSpacing: 2,
   },
@@ -131,11 +143,9 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   loginText: {
-    color: "#333",
     fontSize: 14,
   },
   loginLinkText: {
-    color: "#4A90E2",
     fontWeight: "500",
   },
 });

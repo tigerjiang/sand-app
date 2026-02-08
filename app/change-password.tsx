@@ -1,13 +1,23 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import {
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { useI18n } from "../contexts/I18nContext";
+import { useTheme } from "../contexts/ThemeContext";
 import { ApiError, changePassword } from "../utils/api";
 
 export default function ChangePasswordScreen() {
   const router = useRouter();
   const { t } = useI18n();
+  const { isDark } = useTheme();
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [repeatPassword, setRepeatPassword] = useState("");
@@ -16,8 +26,16 @@ export default function ChangePasswordScreen() {
   const [showRepeatPassword, setShowRepeatPassword] = useState(false);
 
   const handleSubmit = async () => {
+    if (!currentPassword.trim()) {
+      Alert.alert(t("error"), t("pleaseEnterCurrentPassword"));
+      return;
+    }
+    if (newPassword.length < 6) {
+      Alert.alert(t("error"), t("passwordMustBeAtLeast6Characters"));
+      return;
+    }
     if (newPassword !== repeatPassword) {
-      Alert.alert(t("error"), "两次输入的新密码不一致");
+      Alert.alert(t("error"), t("passwordsDoNotMatch"));
       return;
     }
     try {
@@ -25,7 +43,8 @@ export default function ChangePasswordScreen() {
       Alert.alert(t("success"), "密码修改成功");
       router.back();
     } catch (e: any) {
-      const msg = e instanceof ApiError ? e.message : (e?.message || "修改密码失败");
+      const msg =
+        e instanceof ApiError ? e.message : e?.message || "修改密码失败";
       Alert.alert(t("error"), msg);
     }
   };
@@ -35,18 +54,32 @@ export default function ChangePasswordScreen() {
     console.log("Forgot password");
   };
 
+  const backgroundColor = isDark ? "#000000" : "#F5F5F0";
+  const textColor = isDark ? "#FFFFFF" : "#000000";
+  const inputBgColor = isDark ? "#1C1C1E" : "#FFF";
+  const placeholderColor = isDark ? "#8E8E93" : "#999";
+  const iconColor = isDark ? "#FFFFFF" : "#000000";
+  const linkColor = isDark ? "#0A84FF" : "#4A90E2";
+
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+    <ScrollView
+      style={[styles.container, { backgroundColor }]}
+      contentContainerStyle={styles.contentContainer}
+    >
       {/* Main Content */}
       <View style={styles.mainContent}>
-        <Text style={styles.title}>{t("enterNewPassword")}</Text>
+        <Text style={[styles.title, { color: textColor }]}>
+          {t("enterNewPassword")}
+        </Text>
 
         {/* Current Password Input */}
-        <View style={styles.passwordContainer}>
+        <View
+          style={[styles.passwordContainer, { backgroundColor: inputBgColor }]}
+        >
           <TextInput
-            style={styles.passwordInput}
+            style={[styles.passwordInput, { color: textColor }]}
             placeholder={t("currentPassword")}
-            placeholderTextColor="#999"
+            placeholderTextColor={placeholderColor}
             value={currentPassword}
             onChangeText={setCurrentPassword}
             secureTextEntry={!showCurrentPassword}
@@ -55,16 +88,22 @@ export default function ChangePasswordScreen() {
             onPress={() => setShowCurrentPassword(!showCurrentPassword)}
             style={styles.eyeIcon}
           >
-            <Ionicons name={showCurrentPassword ? "eye-off" : "eye"} size={20} color="#000" />
+            <Ionicons
+              name={showCurrentPassword ? "eye-off" : "eye"}
+              size={20}
+              color={iconColor}
+            />
           </TouchableOpacity>
         </View>
 
         {/* New Password Input */}
-        <View style={styles.passwordContainer}>
+        <View
+          style={[styles.passwordContainer, { backgroundColor: inputBgColor }]}
+        >
           <TextInput
-            style={styles.passwordInput}
+            style={[styles.passwordInput, { color: textColor }]}
             placeholder={t("newPassword")}
-            placeholderTextColor="#999"
+            placeholderTextColor={placeholderColor}
             value={newPassword}
             onChangeText={setNewPassword}
             secureTextEntry={!showNewPassword}
@@ -73,16 +112,25 @@ export default function ChangePasswordScreen() {
             onPress={() => setShowNewPassword(!showNewPassword)}
             style={styles.eyeIcon}
           >
-            <Ionicons name={showNewPassword ? "eye-off" : "eye"} size={20} color="#000" />
+            <Ionicons
+              name={showNewPassword ? "eye-off" : "eye"}
+              size={20}
+              color={iconColor}
+            />
           </TouchableOpacity>
         </View>
+        <Text style={[styles.passwordHint, { color: placeholderColor }]}>
+          {t("passwordMustBeAtLeast6Characters")}
+        </Text>
 
         {/* Repeat Password Input */}
-        <View style={styles.passwordContainer}>
+        <View
+          style={[styles.passwordContainer, { backgroundColor: inputBgColor }]}
+        >
           <TextInput
-            style={styles.passwordInput}
+            style={[styles.passwordInput, { color: textColor }]}
             placeholder={t("repeatPassword")}
-            placeholderTextColor="#999"
+            placeholderTextColor={placeholderColor}
             value={repeatPassword}
             onChangeText={setRepeatPassword}
             secureTextEntry={!showRepeatPassword}
@@ -91,14 +139,24 @@ export default function ChangePasswordScreen() {
             onPress={() => setShowRepeatPassword(!showRepeatPassword)}
             style={styles.eyeIcon}
           >
-            <Ionicons name={showRepeatPassword ? "eye-off" : "eye"} size={20} color="#000" />
+            <Ionicons
+              name={showRepeatPassword ? "eye-off" : "eye"}
+              size={20}
+              color={iconColor}
+            />
           </TouchableOpacity>
         </View>
 
         {/* Forgot Password Link */}
-        <TouchableOpacity onPress={handleForgotPassword} style={styles.forgotPassword}>
-          <Text style={styles.forgotPasswordText}>
-            {t("forgotPassword")} <Text style={styles.clickHereText}>{t("clickHere")}</Text>
+        <TouchableOpacity
+          onPress={handleForgotPassword}
+          style={styles.forgotPassword}
+        >
+          <Text style={[styles.forgotPasswordText, { color: textColor }]}>
+            {t("forgotPassword")}{" "}
+            <Text style={[styles.clickHereText, { color: linkColor }]}>
+              {t("clickHere")}
+            </Text>
           </Text>
         </TouchableOpacity>
 
@@ -114,7 +172,6 @@ export default function ChangePasswordScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F5F5F0",
   },
   contentContainer: {
     flexGrow: 1,
@@ -128,14 +185,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: "bold",
-    color: "#000",
     marginBottom: 30,
     lineHeight: 36,
   },
   passwordContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FFF",
     borderRadius: 8,
     marginBottom: 16,
     shadowColor: "#000",
@@ -153,17 +208,19 @@ const styles = StyleSheet.create({
   eyeIcon: {
     padding: 14,
   },
+  passwordHint: {
+    fontSize: 12,
+    marginBottom: 8,
+    marginTop: -4,
+  },
   forgotPassword: {
     marginBottom: 30,
   },
   forgotPasswordText: {
-    color: "#000",
     fontSize: 14,
     textAlign: "center",
   },
-  clickHereText: {
-    color: "#4A90E2",
-  },
+  clickHereText: {},
   submitButton: {
     backgroundColor: "#2C2C2C",
     borderRadius: 8,
@@ -178,4 +235,3 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
 });
-

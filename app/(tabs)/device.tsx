@@ -14,7 +14,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import Svg, { Path } from "react-native-svg";
+import Svg, { Circle, Path } from "react-native-svg";
 import DeviceHeader from "../../components/DeviceHeader";
 import { useDevice } from "../../contexts/DeviceContext";
 import { useI18n } from "../../contexts/I18nContext";
@@ -297,8 +297,10 @@ export default function DeviceTab() {
   const backgroundColor = isDark ? "#000000" : "#F5F5F0";
   const textColor = isDark ? "#FFFFFF" : "#000000";
   const iconColor = isDark ? "#FFFFFF" : "#000000";
-  const borderColor = isDark ? "#FFFFFF" : "#E0E0E0";
   const activeBgColor = isDark ? "#2C2C2E" : "#E8E8E8";
+  // 绘制进度：已绘制 vs 未绘制
+  const drawnStrokeColor = "#4CAF50"; // 已绘制 - 绿色
+  const undrawnStrokeColor = isDark ? "#3A3A3C" : "#E0E0E0"; // 未绘制 - 灰
   const sliderActiveColor = isDark ? "#FFFFFF" : "#1A1A1A";
   const sliderTrackColor = isDark ? "#5A5A5C" : "#D0D0D0";
   const sliderBgColor = isDark ? "#1C1C1E" : "#FFFFFF";
@@ -469,15 +471,49 @@ export default function DeviceTab() {
 
         {/* Pattern Display */}
       <View style={styles.patternContainer}>
-        <View style={[styles.patternCircle, { borderColor }]}>
+        <View style={[styles.patternCircle, styles.patternCircleBorderNone]}>
           <Svg width={200} height={200} viewBox="0 0 1000 1000">
+            {/* 圆环边框：未绘制部分为灰色（整圈） */}
+            <Circle
+              cx={500}
+              cy={500}
+              r={495}
+              fill="none"
+              stroke={undrawnStrokeColor}
+              strokeWidth={10}
+              {...({ pathLength: 100 } as object)}
+            />
+            {/* 圆环边框：已绘制部分顺时针 progress% 为绿色 */}
+            <Circle
+              cx={500}
+              cy={500}
+              r={495}
+              fill="none"
+              stroke={drawnStrokeColor}
+              strokeWidth={10}
+              strokeDasharray={`${currentPattern.progress} ${100}`}
+              {...({ pathLength: 100 } as object)}
+            />
+            {/* 图案：未绘制部分用灰色 */}
             <Path
               d={svgPaths[currentItem.svgFile] || svgPaths["01_complex_mandala_rings.svg"]}
               fill="none"
-              stroke={iconColor}
+              stroke={undrawnStrokeColor}
               strokeWidth="5"
               strokeLinecap="round"
               strokeLinejoin="round"
+              {...({ pathLength: 100 } as object)}
+            />
+            {/* 图案：已绘制部分用绿色 */}
+            <Path
+              d={svgPaths[currentItem.svgFile] || svgPaths["01_complex_mandala_rings.svg"]}
+              fill="none"
+              stroke={drawnStrokeColor}
+              strokeWidth="5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeDasharray={`${currentPattern.progress} ${100}`}
+              {...({ pathLength: 100 } as object)}
             />
           </Svg>
         </View>
@@ -945,6 +981,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 16,
     backgroundColor: "transparent",
+  },
+  patternCircleBorderNone: {
+    borderWidth: 0,
   },
   progressText: {
     fontSize: 16,

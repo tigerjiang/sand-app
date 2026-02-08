@@ -25,7 +25,8 @@ export default function DeviceHeader({
   onWhiteNoisePress,
 }: DeviceHeaderProps) {
   const { currentDevice } = useDevice();
-  const displayDeviceName = deviceName || currentDevice?.name || "Meditation Device";
+  const displayDeviceName =
+    deviceName || currentDevice?.name || "Meditation Device";
   const insets = useSafeAreaInsets();
   const { isDark } = useTheme();
 
@@ -74,24 +75,18 @@ export default function DeviceHeader({
         onPress={handlePowerPress}
         activeOpacity={0.7}
       >
-        <View style={styles.powerIconContainer}>
-          <View
-            style={[
-              styles.powerIconCircle,
-              { borderColor: iconColor, opacity: isPowered ? 1 : 0.5 },
-            ]}
-          />
-          <View
-            style={[
-              styles.powerIconLine,
-              { backgroundColor: iconColor, opacity: isPowered ? 1 : 0.5 },
-            ]}
-          />
-        </View>
+        <Ionicons
+          name="power"
+          size={24}
+          color={isPowered ? iconColor : iconColor}
+          style={{ opacity: isPowered ? 1 : 0.5 }}
+        />
       </TouchableOpacity>
 
       {/* 中间：设备名称 */}
-      <Text style={[styles.deviceName, { color: textColor }]}>{displayDeviceName}</Text>
+      <Text style={[styles.deviceName, { color: textColor }]}>
+        {displayDeviceName}
+      </Text>
 
       {/* 右边：LED灯开关和白噪音开关 */}
       <View style={styles.rightButtons}>
@@ -102,10 +97,10 @@ export default function DeviceHeader({
           activeOpacity={0.7}
         >
           <Ionicons
-            name="musical-note"
-            size={20}
-            color={isWhiteNoiseEnabled ? iconColor : iconColor}
-            style={{ opacity: isWhiteNoiseEnabled ? 1 : 0.5 }}
+            name="musical-notes-outline"
+            size={24}
+            color={whiteNoiseEnabled ? iconColor : iconColor}
+            style={{ opacity: whiteNoiseEnabled ? 1 : 0.5 }}
           />
         </TouchableOpacity>
 
@@ -116,7 +111,7 @@ export default function DeviceHeader({
           activeOpacity={0.7}
         >
           <Ionicons
-            name="bulb"
+            name="bulb-outline"
             size={24}
             color={isLedEnabled ? iconColor : iconColor}
             style={{ opacity: isLedEnabled ? 1 : 0.5 }}
@@ -169,7 +164,5 @@ const styles = StyleSheet.create({
   rightButtons: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
   },
 });
-
